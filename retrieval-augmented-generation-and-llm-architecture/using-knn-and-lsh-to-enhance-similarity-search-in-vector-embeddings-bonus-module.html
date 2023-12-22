@@ -1,0 +1,1056 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1"
+        />
+        <style>
+            /* This is needed because the page cover bleed (100vw) will cause horizontal scrolling */
+            /* FIXME: use :has once it is ready for Firefox and lift these back to PageSheetView.module.css */
+            html,
+            body{
+                overflow-x: clip;
+            }
+
+            body.theme-overlay {
+                position: fixed;
+                width: 0;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background-color: var(--theme-overlay-background);
+                z-index: 10000;
+            }
+
+            .gitbook-splashscreen {
+                view-transition-name: splashscreen;
+                position: fixed;
+                top: 0;
+                right: 0;
+                bottom: 0;
+                left: 0;
+                display: flex;
+                width: 100%;
+                height: 100%;
+                z-index: 10000;
+            }
+            .slate-spacer {
+                height: 0;
+                color: transparent;
+                outline: none;
+                position: absolute;
+            }
+
+            ::view-transition-old(splashscreen), ::view-transition-new(splashscreen) {
+                animation-duration: 300ms;
+            }
+        </style>
+        <title>Using kNN and LSH to Enhance Similarity Search in Vector Embeddings (Bonus Module) - 10 Days Realtime LLM Bootcamp</title><style id="__style-root-primary-color" type="text/css">:root {
+                        --custom-theme-color-primary-xxlight: #b9b8fd;
+--custom-theme-color-primary-xlight: #8e8efc;
+--custom-theme-color-primary-light: #4040fa;
+--custom-theme-color-primary-base: #0808F9;
+--custom-theme-color-primary-dark: #1d1da2;
+--custom-theme-color-primary-xdark: #12126c;
+--custom-theme-color-primary-xxdark: #0d0e2a;
+                  }
+            </style><link rel="preload" as="font" type="font/woff2" href="https://app.gitbook.com/public/fonts/Inter/Inter-Bold.woff2?v=3.21" crossorigin="anonymous"/><link rel="preload" as="font" type="font/woff2" href="https://app.gitbook.com/public/fonts/Inter/Inter-BoldItalic.woff2?v=3.21" crossorigin="anonymous"/><link rel="preload" as="font" type="font/woff2" href="https://app.gitbook.com/public/fonts/Inter/Inter-ExtraBold.woff2?v=3.21" crossorigin="anonymous"/><link rel="preload" as="font" type="font/woff2" href="https://app.gitbook.com/public/fonts/Inter/Inter-ExtraBoldItalic.woff2?v=3.21" crossorigin="anonymous"/><link rel="preload" as="font" type="font/woff2" href="https://app.gitbook.com/public/fonts/Inter/Inter-Medium.woff2?v=3.21" crossorigin="anonymous"/><link rel="preload" as="font" type="font/woff2" href="https://app.gitbook.com/public/fonts/Inter/Inter-MediumItalic.woff2?v=3.21" crossorigin="anonymous"/><link rel="preload" as="font" type="font/woff2" href="https://app.gitbook.com/public/fonts/Inter/Inter-Regular.woff2?v=3.21" crossorigin="anonymous"/><link rel="preload" as="font" type="font/woff2" href="https://app.gitbook.com/public/fonts/Inter/Inter-Italic.woff2?v=3.21" crossorigin="anonymous"/><style id="__font-Inter-gitbook-content-font">@font-face {
+            font-family: 'gitbook-content-font';
+            font-style:  normal;
+            font-weight: 700;
+            font-display: swap;
+            src: local("Inter Bold"), local("Inter-Bold"), url("https://app.gitbook.com/public/fonts/Inter/Inter-Bold.woff2?v=3.21") format("woff2"),
+                    url("https://app.gitbook.com/public/fonts/Inter/Inter-Bold.woff?v=3.21") format("woff");
+        }
+@font-face {
+            font-family: 'gitbook-content-font';
+            font-style:  italic;
+            font-weight: 700;
+            font-display: swap;
+            src: local("Inter BoldItalic"), local("Inter-BoldItalic"), url("https://app.gitbook.com/public/fonts/Inter/Inter-BoldItalic.woff2?v=3.21") format("woff2"),
+                    url("https://app.gitbook.com/public/fonts/Inter/Inter-BoldItalic.woff?v=3.21") format("woff");
+        }
+@font-face {
+            font-family: 'gitbook-content-font';
+            font-style:  normal;
+            font-weight: 800;
+            font-display: swap;
+            src: local("Inter ExtraBold"), local("Inter-ExtraBold"), url("https://app.gitbook.com/public/fonts/Inter/Inter-ExtraBold.woff2?v=3.21") format("woff2"),
+                    url("https://app.gitbook.com/public/fonts/Inter/Inter-ExtraBold.woff?v=3.21") format("woff");
+        }
+@font-face {
+            font-family: 'gitbook-content-font';
+            font-style:  italic;
+            font-weight: 800;
+            font-display: swap;
+            src: local("Inter ExtraBoldItalic"), local("Inter-ExtraBoldItalic"), url("https://app.gitbook.com/public/fonts/Inter/Inter-ExtraBoldItalic.woff2?v=3.21") format("woff2"),
+                    url("https://app.gitbook.com/public/fonts/Inter/Inter-ExtraBoldItalic.woff?v=3.21") format("woff");
+        }
+@font-face {
+            font-family: 'gitbook-content-font';
+            font-style:  normal;
+            font-weight: 500;
+            font-display: swap;
+            src: local("Inter Medium"), local("Inter-Medium"), url("https://app.gitbook.com/public/fonts/Inter/Inter-Medium.woff2?v=3.21") format("woff2"),
+                    url("https://app.gitbook.com/public/fonts/Inter/Inter-Medium.woff?v=3.21") format("woff");
+        }
+@font-face {
+            font-family: 'gitbook-content-font';
+            font-style:  italic;
+            font-weight: 500;
+            font-display: swap;
+            src: local("Inter MediumItalic"), local("Inter-MediumItalic"), url("https://app.gitbook.com/public/fonts/Inter/Inter-MediumItalic.woff2?v=3.21") format("woff2"),
+                    url("https://app.gitbook.com/public/fonts/Inter/Inter-MediumItalic.woff?v=3.21") format("woff");
+        }
+@font-face {
+            font-family: 'gitbook-content-font';
+            font-style:  normal;
+            font-weight: 400;
+            font-display: swap;
+            src: local("Inter Regular"), local("Inter-Regular"), url("https://app.gitbook.com/public/fonts/Inter/Inter-Regular.woff2?v=3.21") format("woff2"),
+                    url("https://app.gitbook.com/public/fonts/Inter/Inter-Regular.woff?v=3.21") format("woff");
+        }
+@font-face {
+            font-family: 'gitbook-content-font';
+            font-style:  italic;
+            font-weight: 400;
+            font-display: swap;
+            src: local("Inter Italic"), local("Inter-Italic"), url("https://app.gitbook.com/public/fonts/Inter/Inter-Italic.woff2?v=3.21") format("woff2"),
+                    url("https://app.gitbook.com/public/fonts/Inter/Inter-Italic.woff?v=3.21") format("woff");
+        }</style><meta name="description" content="" id="__meta-description"/><meta name="og:description" content="" id="__meta-og:description"/><meta name="og:image" content="https://www.gitbook.com/cdn-cgi/image/width=1280,dpr=2,height=640,fit=contain,format=auto/https%3A%2F%2F4229912391-files.gitbook.io%2F~%2Ffiles%2Fv0%2Fb%2Fgitbook-x-prod.appspot.com%2Fo%2Fspaces%252F6FUyhX0UiywvK1rz0m1N%252Fsocialpreview%252FptXj3iGq09PVid5Zx50o%252FCopy%2520of%2520Copy%2520of%2520A%252010%2520DAY%2520BOOTCAMP%2520ON%2520(60%2520x%252024%2520in)%2520(1600%2520x%2520400%2520px)%2520(1280%2520x%2520640%2520px)-4.png%3Falt%3Dmedia%26token%3D409f59a4-da57-4abb-ae2a-f4aa9b9d2a4e" id="__meta-og:image"/><meta name="twitter:card" content="summary_large_image" id="__meta-twitter:card"/><meta name="og:title" content="Using kNN and LSH to Enhance Similarity Search in Vector Embeddings (Bonus Module)" id="__meta-og:title"/><meta name="twitter:site" content="10 Days Realtime LLM Bootcamp" id="__meta-twitter:site"/><meta name="robots" content="index" id="__meta-robots"/><link rel="icon" href="https://app.gitbook.com/public/emojis/1f680.png?v=6.0.0" id="__link-icon"/><link rel="apple-touch-icon" href="https://app.gitbook.com/public/emojis/1f680.png?v=6.0.0"/><link rel="stylesheet" href="https://app.gitbook.com/public/emojis/emoji-assets-sprite.css?v=6.0.0" type="text/css" media="all"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.13/dist/katex.min.css" type="text/css" media="all"/>
+                <link rel="modulepreload" href="https://app.gitbook.com/public/app/chunks/MathTeXView.lazycomponent-OAC5XRUC.min.js" />
+                <script type="module" defer src="https://app.gitbook.com/public/app/public-CLQVNK7W.min.js?v=10.9.520-ec373cc718b6051ac3e1c731e2faa3d4a4a65363-7264377297"></script>
+                <link as="style" rel="preload" href="https://app.gitbook.com/public/app/public-5VME2GZE.css?v=10.9.520-ec373cc718b6051ac3e1c731e2faa3d4a4a65363-7264377297">
+                <link rel="stylesheet" href="https://app.gitbook.com/public/app/public-5VME2GZE.css?v=10.9.520-ec373cc718b6051ac3e1c731e2faa3d4a4a65363-7264377297">
+                <style id="react-native-stylesheet">[stylesheet-group="0"]{}
+body{margin:0;}
+button::-moz-focus-inner,input::-moz-focus-inner{border:0;padding:0;}
+html{-ms-text-size-adjust:100%;-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:rgba(0,0,0,0);}
+input::-webkit-search-cancel-button,input::-webkit-search-decoration,input::-webkit-search-results-button,input::-webkit-search-results-decoration{display:none;}
+[stylesheet-group="1"]{}
+.css-11aywtz{-moz-appearance:textfield;-webkit-appearance:none;background-color:rgba(0,0,0,0.00);border-bottom-left-radius:0px;border-bottom-right-radius:0px;border-top-left-radius:0px;border-top-right-radius:0px;border:0 solid black;box-sizing:border-box;font:14px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;margin:0px;padding:0px;resize:none;}
+.css-175oi2r{align-items:stretch;background-color:rgba(0,0,0,0.00);border:0 solid black;box-sizing:border-box;display:flex;flex-basis:auto;flex-direction:column;flex-shrink:0;list-style:none;margin:0px;min-height:0px;min-width:0px;padding:0px;position:relative;text-decoration:none;z-index:0;}
+.css-1qaijid{background-color:rgba(0,0,0,0.00);border:0 solid black;box-sizing:border-box;color:inherit;display:inline;font:inherit;list-style:none;margin:0px;padding:0px;text-align:inherit;text-decoration:none;white-space:inherit;word-wrap:break-word;}
+.css-1rynq56{background-color:rgba(0,0,0,0.00);border:0 solid black;box-sizing:border-box;color:rgba(0,0,0,1.00);display:inline;font:14px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;list-style:none;margin:0px;padding:0px;text-align:inherit;text-decoration:none;white-space:pre-wrap;word-wrap:break-word;}
+.css-9pa8cd{bottom:0px;height:100%;left:0px;opacity:0;position:absolute;right:0px;top:0px;width:100%;z-index:-1;}
+[stylesheet-group="2"]{}
+.r-1064s9p{margin:4px;}
+.r-117ykcp{border-bottom-color:var(--sp-color-border-base);border-left-color:var(--sp-color-border-base);border-right-color:var(--sp-color-border-base);border-top-color:var(--sp-color-border-base);}
+.r-11mg6pl{border-bottom-color:rgba(255,255,255,1.00);border-left-color:rgba(255,255,255,1.00);border-right-color:rgba(255,255,255,1.00);border-top-color:rgba(255,255,255,1.00);}
+.r-13awgt0{flex:1;}
+.r-13fxbef{border-bottom-color:rgba(211,61,61,1.00);border-left-color:rgba(211,61,61,1.00);border-right-color:rgba(211,61,61,1.00);border-top-color:rgba(211,61,61,1.00);}
+.r-1471scf{display:inline;}
+.r-156hn8l{border-bottom-color:rgba(211,220,228,1.00);border-left-color:rgba(211,220,228,1.00);border-right-color:rgba(211,220,228,1.00);border-top-color:rgba(211,220,228,1.00);}
+.r-17gur6a{border-bottom-left-radius:0px;border-bottom-right-radius:0px;border-top-left-radius:0px;border-top-right-radius:0px;}
+.r-18c69zk{border-bottom-left-radius:100px;border-bottom-right-radius:100px;border-top-left-radius:100px;border-top-right-radius:100px;}
+.r-190qawg{border-bottom-color:rgba(227,232,237,1.00);border-left-color:rgba(227,232,237,1.00);border-right-color:rgba(227,232,237,1.00);border-top-color:rgba(227,232,237,1.00);}
+.r-19dn8jc{border-bottom-color:rgba(104,60,17,1.00);border-left-color:rgba(104,60,17,1.00);border-right-color:rgba(104,60,17,1.00);border-top-color:rgba(104,60,17,1.00);}
+.r-1awa8pu{border-bottom-color:rgba(101,119,134,1.00);border-left-color:rgba(101,119,134,1.00);border-right-color:rgba(101,119,134,1.00);border-top-color:rgba(101,119,134,1.00);}
+.r-1c57tb8{border-bottom-left-radius:34px;border-bottom-right-radius:34px;border-top-left-radius:34px;border-top-right-radius:34px;}
+.r-1d4xg89{border-bottom-color:rgba(170,184,194,1.00);border-left-color:rgba(170,184,194,1.00);border-right-color:rgba(170,184,194,1.00);border-top-color:rgba(170,184,194,1.00);}
+.r-1dqxon3{overflow-x:auto;overflow-y:auto;}
+.r-1edjr5w{padding:80px;}
+.r-1enbwcd{border-bottom-color:rgba(185,184,253,1.00);border-left-color:rgba(185,184,253,1.00);border-right-color:rgba(185,184,253,1.00);border-top-color:rgba(185,184,253,1.00);}
+.r-1fdo3w0{margin:16px;}
+.r-1fuqb1j{border-bottom-left-radius:24px;border-bottom-right-radius:24px;border-top-left-radius:24px;border-top-right-radius:24px;}
+.r-1j16mh1{border-bottom-left-radius:100%;border-bottom-right-radius:100%;border-top-left-radius:100%;border-top-right-radius:100%;}
+.r-1jkafct{border-bottom-left-radius:2px;border-bottom-right-radius:2px;border-top-left-radius:2px;border-top-right-radius:2px;}
+.r-1jyn79y{border-bottom-color:rgba(0,150,136,1.00);border-left-color:rgba(0,150,136,1.00);border-right-color:rgba(0,150,136,1.00);border-top-color:rgba(0,150,136,1.00);}
+.r-1p0fg95{border-bottom-color:rgba(245,247,249,1.00);border-left-color:rgba(245,247,249,1.00);border-right-color:rgba(245,247,249,1.00);border-top-color:rgba(245,247,249,1.00);}
+.r-1phboty{border-bottom-style:solid;border-left-style:solid;border-right-style:solid;border-top-style:solid;}
+.r-1rwzld0{border-bottom-color:rgba(11,79,47,1.00);border-left-color:rgba(11,79,47,1.00);border-right-color:rgba(11,79,47,1.00);border-top-color:rgba(11,79,47,1.00);}
+.r-1udh08x{overflow-x:hidden;overflow-y:hidden;}
+.r-1ufqoot{border-bottom-color:rgba(20,23,28,1.00);border-left-color:rgba(20,23,28,1.00);border-right-color:rgba(20,23,28,1.00);border-top-color:rgba(20,23,28,1.00);}
+.r-1w1o3af{border-bottom-color:rgba(251,232,240,1.00);border-left-color:rgba(251,232,240,1.00);border-right-color:rgba(251,232,240,1.00);border-top-color:rgba(251,232,240,1.00);}
+.r-1wgstfn{border-bottom-style:none;border-left-style:none;border-right-style:none;border-top-style:none;}
+.r-1x0lp8v{border-bottom-color:rgba(220,238,244,1.00);border-left-color:rgba(220,238,244,1.00);border-right-color:rgba(220,238,244,1.00);border-top-color:rgba(220,238,244,1.00);}
+.r-1xc7w19{border-bottom-color:rgba(0,0,0,1.00);border-left-color:rgba(0,0,0,1.00);border-right-color:rgba(0,0,0,1.00);border-top-color:rgba(0,0,0,1.00);}
+.r-1xfd6ze{border-bottom-left-radius:8px;border-bottom-right-radius:8px;border-top-left-radius:8px;border-top-right-radius:8px;}
+.r-1xutcf9{padding:40px;}
+.r-1yadl64{border-bottom-width:0px;border-left-width:0px;border-right-width:0px;border-top-width:0px;}
+.r-42olwf{border-bottom-color:rgba(0,0,0,0.00);border-left-color:rgba(0,0,0,0.00);border-right-color:rgba(0,0,0,0.00);border-top-color:rgba(0,0,0,0.00);}
+.r-4a18lf{border-bottom-color:rgba(255,0,0,1.00);border-left-color:rgba(255,0,0,1.00);border-right-color:rgba(255,0,0,1.00);border-top-color:rgba(255,0,0,1.00);}
+.r-4qtqp9{display:inline-block;}
+.r-60ke3l{border-bottom-color:rgba(0,128,0,1.00);border-left-color:rgba(0,128,0,1.00);border-right-color:rgba(0,128,0,1.00);border-top-color:rgba(0,128,0,1.00);}
+.r-6578ry{margin:40px;}
+.r-6koalj{display:flex;}
+.r-6ncur5{border-bottom-left-radius:18px;border-bottom-right-radius:18px;border-top-left-radius:18px;border-top-right-radius:18px;}
+.r-6t2glc{border-bottom-left-radius:40px;border-bottom-right-radius:40px;border-top-left-radius:40px;border-top-right-radius:40px;}
+.r-9x6qib{border-bottom-color:rgba(204,214,221,1.00);border-left-color:rgba(204,214,221,1.00);border-right-color:rgba(204,214,221,1.00);border-top-color:rgba(204,214,221,1.00);}
+.r-9zxvpa{border-bottom-color:rgba(8,8,249,1.00);border-left-color:rgba(8,8,249,1.00);border-right-color:rgba(8,8,249,1.00);border-top-color:rgba(8,8,249,1.00);}
+.r-ancj0c{border-bottom-color:rgba(218,212,255,1.00);border-left-color:rgba(218,212,255,1.00);border-right-color:rgba(218,212,255,1.00);border-top-color:rgba(218,212,255,1.00);}
+.r-by8dw1{margin:24px;}
+.r-bztko3{overflow-x:visible;overflow-y:visible;}
+.r-cdmcib{border-bottom-left-radius:3px;border-bottom-right-radius:3px;border-top-left-radius:3px;border-top-right-radius:3px;}
+.r-cpet4d{border-bottom-left-radius:999px;border-bottom-right-radius:999px;border-top-left-radius:999px;border-top-right-radius:999px;}
+.r-crgep1{margin:0px;}
+.r-d045u9{border-bottom-width:2px;border-left-width:2px;border-right-width:2px;border-top-width:2px;}
+.r-d23pfw{padding:24px;}
+.r-dta0w2{flex:2;}
+.r-edyy15{padding:8px;}
+.r-eg6o18{border-bottom-style:dashed;border-left-style:dashed;border-right-style:dashed;border-top-style:dashed;}
+.r-egco7n{border-bottom-color:rgba(253,195,137,1.00);border-left-color:rgba(253,195,137,1.00);border-right-color:rgba(253,195,137,1.00);border-top-color:rgba(253,195,137,1.00);}
+.r-fx7oqy{border-bottom-color:rgba(0,0,255,1.00);border-left-color:rgba(0,0,255,1.00);border-right-color:rgba(0,0,255,1.00);border-top-color:rgba(0,0,255,1.00);}
+.r-hvic4v{display:none;}
+.r-hwh8t1{margin:8px;}
+.r-jqra5g{border-bottom-color:rgba(55,65,81,1.00);border-left-color:rgba(55,65,81,1.00);border-right-color:rgba(55,65,81,1.00);border-top-color:rgba(55,65,81,1.00);}
+.r-jxo161{border-bottom-color:rgba(255,204,203,1.00);border-left-color:rgba(255,204,203,1.00);border-right-color:rgba(255,204,203,1.00);border-top-color:rgba(255,204,203,1.00);}
+.r-kdyh1x{border-bottom-left-radius:6px;border-bottom-right-radius:6px;border-top-left-radius:6px;border-top-right-radius:6px;}
+.r-krxsd3{display:-webkit-box;}
+.r-m2nopt{border-bottom-color:rgba(43,46,57,1.00);border-left-color:rgba(43,46,57,1.00);border-right-color:rgba(43,46,57,1.00);border-top-color:rgba(43,46,57,1.00);}
+.r-m7id7e{flex:unset;}
+.r-m9k8lk{border-bottom-color:rgba(223,255,240,1.00);border-left-color:rgba(223,255,240,1.00);border-right-color:rgba(223,255,240,1.00);border-top-color:rgba(223,255,240,1.00);}
+.r-nsbfu8{padding:16px;}
+.r-p4pd8u{border-bottom-color:rgba(36,42,49,1.00);border-left-color:rgba(36,42,49,1.00);border-right-color:rgba(36,42,49,1.00);border-top-color:rgba(36,42,49,1.00);}
+.r-qwd59z{border-bottom-left-radius:1px;border-bottom-right-radius:1px;border-top-left-radius:1px;border-top-right-radius:1px;}
+.r-rs99b7{border-bottom-width:1px;border-left-width:1px;border-right-width:1px;border-top-width:1px;}
+.r-t60dpp{padding:0px;}
+.r-texgdz{margin:80px;}
+.r-tuq35u{padding:4px;}
+.r-tyhe3k{border-bottom-left-radius:64px;border-bottom-right-radius:64px;border-top-left-radius:64px;border-top-right-radius:64px;}
+.r-xoduu5{display:inline-flex;}
+.r-xyw6el{padding:12px;}
+.r-ywje51{margin:auto;}
+.r-z2wwpe{border-bottom-left-radius:4px;border-bottom-right-radius:4px;border-top-left-radius:4px;border-top-right-radius:4px;}
+.r-zhp00w{padding:2px;}
+[stylesheet-group="2.1"]{}
+.r-10x3wzx{padding-bottom:40px;padding-top:40px;}
+.r-11yq8vr{margin-left:40px;margin-right:40px;}
+.r-1e081e0{padding-left:12px;padding-right:12px;}
+.r-1guathk{padding-left:24px;padding-right:24px;}
+.r-1h4fu65{padding-bottom:24px;padding-top:24px;}
+.r-1hy1u7s{margin-left:24px;margin-right:24px;}
+.r-1isdzm1{padding-left:80px;padding-right:80px;}
+.r-1jgb5lz{margin-left:auto;margin-right:auto;}
+.r-1p02zvt{padding-left:48px;padding-right:48px;}
+.r-1p4rafz{padding-left:2px;padding-right:2px;}
+.r-1p6iasa{margin-bottom:4px;margin-top:4px;}
+.r-1pn2ns4{padding-left:8px;padding-right:8px;}
+.r-1r5su4o{margin-bottom:16px;margin-top:16px;}
+.r-1unineu{margin-bottom:40px;margin-top:40px;}
+.r-1w3m5we{padding-bottom:80px;padding-top:80px;}
+.r-1ybube5{margin-left:8px;margin-right:8px;}
+.r-1ydw1k6{margin-left:16px;margin-right:16px;}
+.r-1yzf0co{padding-bottom:16px;padding-top:16px;}
+.r-4amgru{margin-left:4px;margin-right:4px;}
+.r-5njf8e{padding-bottom:8px;padding-top:8px;}
+.r-5wp0in{padding-left:40px;padding-right:40px;}
+.r-c8eef1{margin-bottom:8px;margin-top:8px;}
+.r-g4w12b{padding-left:94px;padding-right:94px;}
+.r-g8va3u{margin-left:80px;margin-right:80px;}
+.r-mk0yit{padding-left:0px;padding-right:0px;}
+.r-mvpalk{margin-left:0px;margin-right:0px;}
+.r-oyd9sg{padding-bottom:4px;padding-top:4px;}
+.r-pw2am6{margin-bottom:24px;margin-top:24px;}
+.r-r0h9e2{margin-bottom:0px;margin-top:0px;}
+.r-r26ds4{margin-bottom:80px;margin-top:80px;}
+.r-rjfia{padding-bottom:0px;padding-top:0px;}
+.r-s1qlax{padding-left:4px;padding-right:4px;}
+.r-ymttw5{padding-left:16px;padding-right:16px;}
+[stylesheet-group="2.2"]{}
+.r-100vyta{margin-top:7px;}
+.r-1029d6i{top:-24px;}
+.r-105ug2t{pointer-events:auto!important;}
+.r-109y4c4{height:1px;}
+.r-10kz8ia{color:rgba(228,79,137,1.00);}
+.r-10ptun7{height:16px;}
+.r-10pyoum{color:rgba(5,5,5,1.00);}
+.r-10x49cs{font-size:10px;}
+.r-10xqauy{padding-top:env(safe-area-inset-top);}
+.r-111w7nw{box-shadow:0px 1px 2px rgba(0,0,0,0.69);}
+.r-113qch9{cursor:auto;}
+.r-116b19x{padding-left:40px;}
+.r-119vxgs{border-top-style:dashed;}
+.r-11c0sde{margin-top:24px;}
+.r-11f42r{height:314px;}
+.r-11g3r6m{padding-right:24px;}
+.r-11j9u27{visibility:hidden;}
+.r-11mo1y0{margin-bottom:7px;}
+.r-11mpjr4{background-color:rgba(223,223,223,1.00);}
+.r-11udlyb{background-color:rgba(0,150,136,1.00);}
+.r-11vxtcu{background-color:rgba(211,220,228,1.00);}
+.r-11wrixw{margin-left:0px;}
+.r-11xdecz{max-width:233px;}
+.r-11yh6sk{overflow-x:hidden;}
+.r-11ys0m{-webkit-break-before:auto;break-before:auto;}
+.r-123mryc{color:rgba(185,94,4,1.00);}
+.r-127358a{animation-name:r-9p3sdl;}
+.r-127gp16{max-width:150px;}
+.r-12dqhl9{height:calc(100vh - 80px);}
+.r-12mrs02{object-fit:contain;}
+.r-12vffkv>*{pointer-events:auto;}
+.r-12vffkv{pointer-events:none!important;}
+.r-12ym1je{width:18px;}
+.r-12zb1j4{margin-right:7px;}
+.r-135wba7{line-height:24px;}
+.r-13gfk22{animation-delay:250ms;}
+.r-13hce6t{margin-left:4px;}
+.r-13i40vn{box-shadow:0px 12px 13px rgba(0,0,0,0.02);}
+.r-13l2t4g{border-right-width:1px;}
+.r-13ll0g2{color:rgba(10,48,105,1.00);}
+.r-13lvk87{margin-left:110px;}
+.r-13qz1uu{width:100%;}
+.r-13tjlyg{transition-duration:0.1s;}
+.r-13yce4e{border-top-width:0px;}
+.r-142tt33{-webkit-text-decoration-line:line-through;text-decoration-line:line-through;}
+.r-144uupt{left:2px;}
+.r-146iojx{max-width:300px;}
+.r-1472mwg{height:24px;}
+.r-14bkmb3{bottom:-3px;}
+.r-14eup4l{top:3px;}
+.r-14gqq1x{margin-top:4px;}
+.r-14lw9ot{background-color:rgba(255,255,255,1.00);}
+.r-14sbq61{background-color:rgba(33,150,243,1.00);}
+.r-14utu6a{line-height:8px;}
+.r-14vq63g{background-color:rgba(3,58,22,1.00);}
+.r-14yzgew{line-height:18px;}
+.r-150rngu{-webkit-overflow-scrolling:touch;}
+.r-157h22z{background-color:rgba(45,50,58,1.00);}
+.r-15g7tld{margin-bottom:80px;}
+.r-15m1z73{margin-left:40px;}
+.r-15m68ww{color:rgba(137,198,218,1.00);}
+.r-15o5oer{bottom:auto;}
+.r-15ysp7h{min-height:32px;}
+.r-15zivkp{margin-bottom:4px;}
+.r-16dba41{font-weight:400;}
+.r-16et402{color:var(--sp-color-text-light);}
+.r-16l9doz{height:auto;}
+.r-16y2uox{flex-grow:1;}
+.r-173mn98{align-self:flex-end;}
+.r-1777fci{justify-content:center;}
+.r-17bb2tj{animation-duration:0.75s;}
+.r-17giqoz{box-shadow:0px 0px 7px rgba(0,0,0,0.52);}
+.r-17grq5a{margin-right:-8px;}
+.r-17leim2{background-repeat:repeat;}
+.r-17mnkfo{background-color:var(--sp-color-button-upgrade-bg-default);}
+.r-17rnw9f{line-height:30px;}
+.r-17s6mgv{justify-content:flex-end;}
+.r-17tb59b{opacity:0.7;}
+.r-17tloay{opacity:0.6;}
+.r-17wrw06{color:rgba(180,26,26,1.00);}
+.r-183j5qr{border-bottom-color:rgba(8,8,249,1.00);}
+.r-184en5c{z-index:1;}
+.r-18ayb63{border-right-color:rgba(227,232,237,1.00);}
+.r-18kxxzh{flex-grow:0;}
+.r-18nhz7w{top:-3px;}
+.r-18p6if4{border-right-width:2px;}
+.r-18u37iz{flex-direction:row;}
+.r-18y5qoh{color:rgba(165,214,255,1.00);}
+.r-190thrv{color:rgba(145,75,5,1.00);}
+.r-19554kt{width:90px;}
+.r-19akecc{color:rgba(175,245,180,1.00);}
+.r-19byhck{flex-basis:32%;}
+.r-19lq7b1{top:16px;}
+.r-19r33im{letter-spacing:1.2px;}
+.r-19tq15n{margin-top:80px;}
+.r-19wmn03{width:20px;}
+.r-19z077z{touch-action:none;}
+.r-1a3cspq{background-color:rgba(40,49,67,1.00);}
+.r-1abnn5w{animation-play-state:paused;}
+.r-1acpoxo{width:36px;}
+.r-1adewhw{padding-bottom:76px;}
+.r-1aerykh{border-top-color:rgba(211,220,228,1.00);}
+.r-1ais5m6{transform:rotate(90deg);}
+.r-1aockid{width:40px;}
+.r-1armvtb{font-size:8px;}
+.r-1at97bn{outline-color:#1d1da2;}
+.r-1awozwy{align-items:center;}
+.r-1axcl7z{border:1px solid #d3dce4;}
+.r-1ay1djp{animation-duration:1s;}
+.r-1b00too{background-color:rgba(236,239,241,1.00);}
+.r-1b096ap{border-bottom-color:rgba(36,42,49,1.00);}
+.r-1b1g84l{bottom:-8px;}
+.r-1b43r93{font-size:14px;}
+.r-1bcbbo8{color:rgba(17,99,41,1.00);}
+.r-1bnj018{color:rgba(92,105,117,1.00);}
+.r-1c681wc{color:rgba(77,222,152,1.00);}
+.r-1c6unfx{forced-color-adjust:none;}
+.r-1ce3o0f{max-height:80vh;}
+.r-1ceczpf{min-height:24px;}
+.r-1clhhh9{-moz-transition-property:all;-webkit-transition-property:all;transition-property:all;}
+.r-1cmwbt1{gap:8px;}
+.r-1d09ksm{align-items:baseline;}
+.r-1d2f490{left:0px;}
+.r-1d4mawv{margin-right:4px;}
+.r-1d5kdc7{flex-direction:column-reverse;}
+.r-1d7fvdj{justify-content:space-evenly;}
+.r-1d9grui{border-bottom-color:rgba(211,220,228,1.00);}
+.r-1ddef8g{-webkit-text-decoration-line:underline;text-decoration-line:underline;}
+.r-1dernwh{height:70%;}
+.r-1dlgt49{max-height:30px;}
+.r-1dmvmgl{background-color:rgba(36,42,49,1.00);}
+.r-1dn12g7{line-height:48px;}
+.r-1dpl46z{border-bottom-right-radius:4px;}
+.r-1dqbpge{cursor:text;}
+.r-1dumtqg{background-color:rgba(253,195,137,1.00);}
+.r-1efo1hp{border-bottom-color:rgba(43,46,57,1.00);}
+.r-1ei5mc7{cursor:inherit;}
+.r-1eic64l{color:rgba(198,44,104,1.00);}
+.r-1enofrn{font-size:12px;}
+.r-1euycsn{flex-direction:row-reverse;}
+.r-1ewcgjf{box-shadow:0px 1px 3px rgba(0,0,0,0.5);}
+.r-1f19r58{border-left-color:rgba(8,8,249,1.00);}
+.r-1f2v84d{color:rgba(204,207,212,1.00);}
+.r-1f529hi{line-height:14px;}
+.r-1f77ubx{padding-bottom:var(--sp-spacing-300);}
+.r-1fd96xs{padding-left:50px;}
+.r-1fdih9r{gap:24px;}
+.r-1fe0xdi{left:0%;}
+.r-1ff274t{text-align:right;}
+.r-1fi01yr{background-color:rgba(55,65,81,1.00);}
+.r-1fiaf3z{opacity:0.05;}
+.r-1fo40xd{top:80px;}
+.r-1fq43b1{flex-basis:100%;}
+.r-1g7fiml{height:30px;}
+.r-1g7wncz{background-color:rgba(185,184,253,1.00);}
+.r-1g80fh1{margin-right:80px;}
+.r-1gigy5k{border-bottom-color:rgba(45,50,58,1.00);}
+.r-1glc72y{border-bottom-color:rgba(245,247,249,1.00);}
+.r-1glkqn6{width:80px;}
+.r-1h0z5md{justify-content:flex-start;}
+.r-1h2t8mc{width:0px;}
+.r-1h815vi{right:92%;}
+.r-1h8ys4a{padding-top:4px;}
+.r-1habvwh{align-items:flex-start;}
+.r-1hjwoze{height:18px;}
+.r-1hlnpa{height:3px;}
+.r-1hpgsb4{;}
+.r-1hqdnve{box-shadow:0px 0px 4px inset rgba(0,0,0, 0.08);}
+.r-1hrvmjx{border-top-color:rgba(55,65,81,1.00);}
+.r-1hvjb8t{padding-right:4px;}
+.r-1hy97zq{padding-top:80px;}
+.r-1i3fv1w{border-right-color:rgba(8,8,249,1.00);}
+.r-1i6wzkk{-moz-transition-property:opacity;-webkit-transition-property:opacity;transition-property:opacity;}
+.r-1i7sdiz{box-shadow:0px 4px 10px rgba(0,0,0,0.05);}
+.r-1i93rbr{right:0%;}
+.r-1iadl42{background-color:var(--sp-color-bg-standout-base);}
+.r-1ielgck{animation-duration:300ms;}
+.r-1ifxtd0{margin-bottom:16px;}
+.r-1iln25a{word-wrap:normal;}
+.r-1ioqa4e{border-top-right-radius:7px;}
+.r-1ipicw7{width:300px;}
+.r-1j6ujpa{color:rgba(64,64,250,1.00);}
+.r-1j7aebl{width:880px;}
+.r-1janqcz{width:16px;}
+.r-1jg9483{width:8px;}
+.r-1jj8364{margin-left:auto;}
+.r-1jkjb{margin-left:8px;}
+.r-1jnzvcq{padding-bottom:80px;}
+.r-1jocfgc{width:290px;}
+.r-1jpmnxg{word-wrap:anywhere;}
+.r-1jxfwug{border-top-width:2px;}
+.r-1k25im9{height:26px;}
+.r-1kb76zh{margin-right:8px;}
+.r-1kf75xu{color:rgba(12,105,61,1.00);}
+.r-1kfrs79{font-weight:600;}
+.r-1kihuf0{align-self:center;}
+.r-1kjq87h{width:376px;}
+.r-1knl56f{animation-name:r-1hunrpy;}
+.r-1kvn7zp{max-height:150px;}
+.r-1l0m7dr{background-image:radial-gradient(rgba(0, 0, 0, 0.1), #ffffff);}
+.r-1l7z4oj{padding-bottom:16px;}
+.r-1l94q7l{box-shadow:inset 0px 0px 1px rgb(0 0 0 / 30%);}
+.r-1ld3bg{top:-4px;}
+.r-1ldzwu0{animation-timing-function:linear;}
+.r-1ljd8xs{border-left-width:1px;}
+.r-1lky6n1{background-color:rgba(227,232,237,1.00);}
+.r-1lnfjr6{-webkit-background-clip:text;}
+.r-1lnt56z{color:rgba(211,220,228,1.00);}
+.r-1loqt21{cursor:pointer;}
+.r-1m04atk{padding-left:8px;}
+.r-1m4drjs{top:-6px;}
+.r-1maqer6{max-width:860px;}
+.r-1mdbw0j{padding-bottom:0px;}
+.r-1mdsxwj{color:rgba(237,159,81,1.00);}
+.r-1mgmw1x{background-image:linear-gradient(90deg, #5f45ff, #442fc8);}
+.r-1mhb1uw{width:42px;}
+.r-1mhtwjo{left:-3px;}
+.r-1mlwlqe{flex-basis:auto;}
+.r-1mnahxq{margin-top:0px;}
+.r-1moh23t{bottom:16px;}
+.r-1mrlafo{background-position:0;}
+.r-1ms9ukt{bottom:-5px;}
+.r-1mtwht8{color:rgba(210,168,255,1.00);}
+.r-1muvv40{animation-iteration-count:infinite;}
+.r-1n20pny{width:140px;}
+.r-1n6k3lk{color:rgba(36,42,49,1.00);}
+.r-1na1l7e{animation-play-state:running;}
+.r-1nf4jbm{color:rgba(59,69,78,1.00);}
+.r-1niwhzg{background-color:rgba(0,0,0,0.00);}
+.r-1nj16ve{left:-10px;}
+.r-1nlw0im{bottom:8px;}
+.r-1nnq5pb{background-color:var(--sp-color-bg-base);}
+.r-1ny4l3l{outline-style:none;}
+.r-1o2nx2a{font-weight:360;}
+.r-1ocf4r9{scroll-snap-type:y mandatory;}
+.r-1odw9d6{background-color:rgba(20,23,28,1.00);}
+.r-1oec5bt{opacity:0.2;}
+.r-1oep0n4{left:-12px;}
+.r-1ois7e2{color:rgba(55,65,81,1.00);}
+.r-1or9b2r{height:10px;}
+.r-1osy6ei{color:rgba(255,220,215,1.00);}
+.r-1oszu61{align-items:stretch;}
+.r-1otgn73{touch-action:manipulation;}
+.r-1ow6zhx{margin-left:16px;}
+.r-1p0dtai{bottom:0px;}
+.r-1p5i0ed{bottom:-24px;}
+.r-1p69tiw{border-top-color:rgba(43,46,57,1.00);}
+.r-1pa6394{color:var(--sp-color-text-muted);}
+.r-1peese0{margin-bottom:24px;}
+.r-1ph75f1{height:80px;}
+.r-1pi2tsx{height:100%;}
+.r-1pl7oy7{min-height:48px;}
+.r-1ptriwd{right:2px;}
+.r-1pyaxff{padding-right:8px;}
+.r-1q142lx{flex-shrink:0;}
+.r-1q6rxnj{padding-right:110px;}
+.r-1q77oe7{background-color:rgba(171,183,202,1.00);}
+.r-1q9ho9q{color:rgba(48,127,152,1.00);}
+.r-1q9jyb7{-webkit-filter:blur(16px) contrast(110%) hue-rotate(10deg) brightness(1.2) saturate(1.2);filter:blur(16px) contrast(110%) hue-rotate(10deg) brightness(1.2) saturate(1.2);}
+.r-1qc3rpd{transform:scaleY(-1);}
+.r-1qd0xha{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+.r-1qdbj55{animation-name:r-ndfo3d;}
+.r-1qefu2b{right:-3px;}
+.r-1qhn6m8{padding-left:16px;}
+.r-1qipmxq{color:var(--sp-color-button-upgrade-text);}
+.r-1quu1zo{;}
+.r-1r0uwd5{color:rgba(255,166,87,1.00);}
+.r-1r3mtb5{border-bottom-color:rgba(20,23,28,1.00);}
+.r-1r74h94{left:8px;}
+.r-1r8g8re{height:36px;}
+.r-1rasi3h{color:rgba(136,153,168,1.00);}
+.r-1rbj2e8{outline-color:#f5f7f9;}
+.r-1rdth4h{border-left-color:rgba(55,65,81,1.00);}
+.r-1rho1gz{box-shadow:0px 12px 13px rgba(0,0,0,0.12);}
+.r-1rkdych{max-width:1040px;}
+.r-1rla0r3{background-image:linear-gradient(90deg, #d33d3d, #b41a1a);}
+.r-1rnoaur{overflow-y:auto;}
+.r-1ro0kt6{flex-basis:0%;}
+.r-1ro7rbe{right:100%;}
+.r-1rttkqs{width:400px;}
+.r-1s2hdh9{color:rgba(18,18,108,1.00);}
+.r-1s3egr7{z-index:100;}
+.r-1s8p94s{max-width:832px;}
+.r-1sncvnh{transform:translateZ(0px);}
+.r-1sxrcry{background-size:auto;}
+.r-1t2qqvi{flex-basis:50%;}
+.r-1t7uo4s{object-fit:cover;}
+.r-1t8m4kl{text-shadow:0px 0px 3px rgba(36,42,49,1.00);}
+.r-1tazni7{cursor:not-allowed;}
+.r-1ts5s6y{aspect-ratio:1.7777777777777777;}
+.r-1ttybm1{border-top-color:rgba(45,50,58,1.00);}
+.r-1tymxbh{box-shadow:5px 0px 7px rgba(36,42,49,0.60);}
+.r-1u9v6se{color:rgba(39,85,100,1.00);}
+.r-1ua3vzd{background-color:rgba(223,255,240,1.00);}
+.r-1ub1aon{transform:translateY(100%);}
+.r-1udbk01{text-overflow:ellipsis;}
+.r-1ufdtu9{background-image:linear-gradient(270deg, #e3e8ed 10%, #f5f7f9, #e3e8ed 90%);}
+.r-1ufr4wv{z-index:9;}
+.r-1ui5ee8{font-size:32px;}
+.r-1ul06mb{margin-left:32px;}
+.r-1ulgld5{color:rgba(255,123,114,1.00);}
+.r-1um4q9x{-moz-transition:opacity 800ms ease;-webkit-transition:opacity 800ms ease;transition:opacity 800ms ease;}
+.r-1uql0sn{top:-1.2em;}
+.r-1ur9v65{padding-top:40px;}
+.r-1ut4w64{margin-bottom:-1px;}
+.r-1uwte3a{padding-bottom:40px;}
+.r-1uypc71{animation-timing-function:ease-in;}
+.r-1v2oles{top:50%;}
+.r-1v7sw2p{background-size:50% 80px;}
+.r-1vamr63{max-width:720px;}
+.r-1vckr1u{background-color:rgba(245,247,249,1.00);}
+.r-1vex5ub{color:rgba(68,47,200,1.00);}
+.r-1vutw0s{background-color:rgba(103,6,12,1.00);}
+.r-1vzi8xi{vertical-align:middle;}
+.r-1w2pmg{height:0px;}
+.r-1w6e6rj{flex-wrap:wrap;}
+.r-1wbh5a2{flex-shrink:1;}
+.r-1wezhl{margin-left:80px;}
+.r-1wfhzrg{height:120px;}
+.r-1wghi3f{top:-8px;}
+.r-1wtj0ep{justify-content:space-between;}
+.r-1wv73ep{align-self:baseline;}
+.r-1wv9jdg{border-top-color:rgba(8,8,249,1.00);}
+.r-1ww30s9{max-width:30px;}
+.r-1wyyakw{z-index:-1;}
+.r-1wzrnnt{margin-top:16px;}
+.r-1x35g6{font-size:24px;}
+.r-1xbve24{height:6px;}
+.r-1xcajam{position:fixed;}
+.r-1xnzce8{-moz-user-select:text;-webkit-user-select:text;user-select:text;}
+.r-1xoqk23{background-color:rgba(68,47,200,1.00);}
+.r-1xsj5db{background-color:var(--sp-color-sidesheet-list-item-bg-hover);}
+.r-1y0r55a{background-image:radial-gradient(rgba(255, 255, 255, 0.1), #14171c);}
+.r-1y14msn{border-bottom-color:rgba(55,65,81,1.00);}
+.r-1y9xkqr{left:8%;}
+.r-1yb8zos{background-color:rgba(162,169,185,1.00);}
+.r-1ybp48z{background-image:linear-gradient(90deg, #cc3131, #b41a1a);}
+.r-1ye8kvj{max-width:600px;}
+.r-1ygmrgt{padding-top:24px;}
+.r-1yv4afn{border-top-color:rgba(227,232,237,1.00);}
+.r-1yvhtrz{width:32px;}
+.r-1yxedwg{top:8px;}
+.r-1yyzdbt{border-left-color:rgba(227,232,237,1.00);}
+.r-257lmc{width:1180px;}
+.r-2atnlg{background-color:rgba(78,170,200,1.00);}
+.r-2awvau{min-width:-webkit-max-content;min-width:-moz-max-content;min-width:max-content;}
+.r-2eszeu::-webkit-scrollbar{display:none}
+.r-2eszeu{scrollbar-width:none;}
+.r-2fm7cc{color:rgba(139,148,158,1.00);}
+.r-2fw26j{outline-offset:0px;}
+.r-2jelyo{background-color:rgba(24,28,31,1.00);}
+.r-2jxp4q{background-color:rgba(34,39,46,1.00);}
+.r-2kxcpj{inset:0px;}
+.r-2llsf{min-height:100%;}
+.r-2o02ov{margin-top:40px;}
+.r-2tavb8{background-color:rgba(0,0,0,0.60);}
+.r-2yi16{min-height:36px;}
+.r-2zpn8w{-webkit-break-inside:avoid;break-inside:avoid;}
+.r-30o5oe{-moz-appearance:none;-ms-appearance:none;-webkit-appearance:none;appearance:none;}
+.r-30qeir{bottom:-4px;}
+.r-36ujnk{font-style:italic;}
+.r-37p410{color:var(--sp-color-text-base);}
+.r-37tt59{line-height:32px;}
+.r-3da1kt{height:8px;}
+.r-3dgjpp{border-top-color:rgba(36,42,49,1.00);}
+.r-3hw5f6{color:rgba(149,56,0,1.00);}
+.r-3kxdz0{outline-color:#286A7F;}
+.r-3mc0re{right:8px;}
+.r-3mtglp{row-gap:16px;}
+.r-3o833n{background-color:rgba(251,232,240,1.00);}
+.r-3pxcvb{border-bottom-color:rgba(255,255,255,1.00);}
+.r-3s2u2q{white-space:nowrap;}
+.r-417010{z-index:0;}
+.r-41syhy{max-width:504px;}
+.r-432wen{width:3px;}
+.r-44c749{border-bottom-left-radius:7px;}
+.r-47i0zk{background-image:radial-gradient(rgba(0, 0, 0, 0.1), #14171c);}
+.r-493a2x{width:680px;}
+.r-4c3hy2{max-width:245px;}
+.r-4dj0k7{box-shadow:0px 1px 2px rgba(0,0,0,0.12);}
+.r-4gszlv{background-size:cover;}
+.r-4v7adb{height:5px;}
+.r-5cpxsl{stroke-width:3;}
+.r-5is6sd{max-width:460px;}
+.r-5kkj8d{border-top-width:1px;}
+.r-5ks0hp{right:3.5px;}
+.r-5kx3fr{page-break-inside:avoid;}
+.r-5oul0u{margin-bottom:8px;}
+.r-5soawk{width:10px;}
+.r-5vf7qs{width:188px;}
+.r-5xr8s6{outline-width:2px;}
+.r-60emj1{background-color:rgba(255,204,203,1.00);}
+.r-61z16t{margin-right:0px;}
+.r-633pao{pointer-events:none!important;}
+.r-6dt33c{opacity:1;}
+.r-6k4xqk{margin-top:-40px;}
+.r-6t5ypu{border-bottom-left-radius:4px;}
+.r-6taxm2:-ms-input-placeholder{color:var(--placeholderTextColor);opacity:1;}
+.r-6taxm2::-moz-placeholder{color:var(--placeholderTextColor);opacity:1;}
+.r-6taxm2::-webkit-input-placeholder{color:var(--placeholderTextColor);opacity:1;}
+.r-6taxm2::placeholder{color:var(--placeholderTextColor);opacity:1;}
+.r-6uxfom{margin-left:24px;}
+.r-6wscbn{max-width:252px;}
+.r-73dpzl{border-top-color:rgba(245,247,249,1.00);}
+.r-7b7h2f{left:100%;}
+.r-7cikom{font-size:inherit;}
+.r-7l9xyp{background-color:rgba(255,255,255,0.20);}
+.r-7q8q6z{cursor:default;}
+.r-7xmw5f{width:-webkit-fit-content;width:-moz-fit-content;width:fit-content;}
+.r-81rbui{animation-name:r-1ak6360;}
+.r-855088{border-left-color:rgba(0,0,0,0.00);}
+.r-88pszg{margin-right:16px;}
+.r-8akbws{-webkit-box-orient:vertical;}
+.r-8d26hk{margin-bottom:40px;}
+.r-8hc5te{width:6px;}
+.r-8jwyv6{-moz-transition:opacity 0.2s ease-in-out;-webkit-transition:opacity 0.2s ease-in-out;transition:opacity 0.2s ease-in-out;}
+.r-8upyzv{width:260px;}
+.r-8v5hsd{color:rgba(126,231,135,1.00);}
+.r-9030i9{box-shadow:0px 4px 10px rgba(0,0,0,0.99);}
+.r-9111t9{padding-right:410px;}
+.r-92ng3h{width:1px;}
+.r-934yyj{padding-left:34px;}
+.r-95jzfe{padding-top:16px;}
+.r-97e31f{padding-bottom:env(safe-area-inset-bottom);}
+.r-97prym{flex-basis:16px;}
+.r-99m41f{color:rgba(110,119,129,1.00);}
+.r-9aemit{padding-right:0px;}
+.r-9ji8r7{transform:translateY(0%);}
+.r-9jpwak{min-width:auto;}
+.r-a2tzq0{justify-content:space-around;}
+.r-a5pmau{margin-right:2px;}
+.r-a9hzal{height:660px;}
+.r-adacv{min-height:64px;}
+.r-adyw6z{font-size:20px;}
+.r-agyig6{background-color:var(--sp-color-button-upgrade-bg-hover);}
+.r-ah5dr5>*{pointer-events:none;}
+.r-ah5dr5{pointer-events:auto!important;}
+.r-ak0haq{color:rgba(121,192,255,1.00);}
+.r-aqxs90{-moz-transition:opacity 500ms ease-in, z-index 1000ms ease-in;-webkit-transition:opacity 500ms ease-in, z-index 1000ms ease-in;transition:opacity 500ms ease-in, z-index 1000ms ease-in;}
+.r-b4cb4{max-height:440px;}
+.r-b88u0q{font-weight:700;}
+.r-bcqeeo{min-width:0px;}
+.r-bgnin{min-width:150px;}
+.r-bnwqim{position:relative;}
+.r-bsjocg{@media print:[object Object];}
+.r-buy8e9{overflow-y:hidden;}
+.r-bv2aro{padding-left:env(safe-area-inset-left);}
+.r-bxaprw{border-top-left-radius:7px;}
+.r-c68hjy{color:rgba(161,161,161,1.00);}
+.r-cdhzog{padding-right:80px;}
+.r-cpa5s6{scroll-snap-align:start;}
+.r-cqilzk{height:400px;}
+.r-d822y2{color:rgba(5,80,174,1.00);}
+.r-deolkf{box-sizing:border-box;}
+.r-dflpy8{height:1.2em;}
+.r-dkge59{background-color:rgba(170,184,194,1.00);}
+.r-dnmrzs{max-width:100%;}
+.r-dse9kg{outline-style:auto;}
+.r-dvzd6p{right:-1px;}
+.r-dvzwsg{border-left-color:rgba(211,220,228,1.00);}
+.r-dwliz8{border-left-width:2px;}
+.r-e1k2in{right:16px;}
+.r-e9uq0i{animation-duration:1200ms;}
+.r-ea455c{border:none;}
+.r-eafdt9{transition-duration:0.15s;}
+.r-ecifi{max-width:970px;}
+.r-ehq7j7{background-size:contain;}
+.r-epq5cr{height:2px;}
+.r-eqz5dr{flex-direction:column;}
+.r-eu3ka{height:40px;}
+.r-f4gmv6{gap:16px;}
+.r-fa5tdg{max-width:456px;}
+.r-fdjqy7{text-align:left;}
+.r-flmpir{border-bottom-color:rgba(40,49,67,1.00);}
+.r-fnigne{border-right-width:0px;}
+.r-fpub7{color:rgba(0,0,0,0.00);}
+.r-fvlm2j{color:rgba(40,106,127,1.00);}
+.r-g3mlsw{animation-name:r-t2lo5v;}
+.r-gg6oyi{font-family:gitbook-content-font,-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;}
+.r-ggadg3{left:-2px;}
+.r-givd4m{left:-5px;}
+.r-gl891g{min-width:420px;}
+.r-gpkeig{border-right-color:var(--sp-color-border-base);}
+.r-gtdqiz{position:-webkit-sticky;position:sticky;}
+.r-gu0qjt{padding-left:32px;}
+.r-gxnn5r{border-left-width:0px;}
+.r-gxopl6{left:316px;}
+.r-gy4na3{padding-left:0px;}
+.r-gys0vz{color:rgba(0,136,71,1.00);}
+.r-h2mvr{min-width:8px;}
+.r-h2q2x{transform:scaleX(-1);}
+.r-h3s6tt{height:48px;}
+.r-h7ga17{background-color:rgba(43,46,57,1.00);}
+.r-h7gdob{color:currentColor;}
+.r-ha54is{icon-color:#a2a9b9;}
+.r-hauab{-moz-transition:width 50ms ease-in-out;-webkit-transition:width 50ms ease-in-out;transition:width 50ms ease-in-out;}
+.r-hbpseb{line-height:22px;}
+.r-hd655f{color:rgba(162,169,185,1.00);}
+.r-homxoj{color:inherit;}
+.r-hq6u89{left:92%;}
+.r-htfu76{margin-left:-8px;}
+.r-hxflta{padding-right:env(safe-area-inset-right);}
+.r-i023vh{padding-right:16px;}
+.r-i7h7g2{-webkit-backdrop-filter:blur(5px);backdrop-filter:blur(5px);}
+.r-i8xx8x{color:rgba(207,34,46,1.00);}
+.r-ia06lx{background-color:rgba(115,92,255,1.00);}
+.r-ibjss6{background-color:rgba(136,153,168,1.00);}
+.r-icoktb{opacity:0.5;}
+.r-ifefl9{min-height:0px;}
+.r-ihd41t{border:1px solid #374151;}
+.r-iphfwy{padding-bottom:4px;}
+.r-ipm5af{top:0px;}
+.r-iqs06e{background-image:radial-gradient(rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 1));}
+.r-ir6n1k{border-top-right-radius:6px;}
+.r-ixzivm{@media print:[object Object];}
+.r-iyfy8q{width:auto;}
+.r-j300sb{animation-name:r-1rx4pb;}
+.r-jfrpv2{color:rgba(130,80,223,1.00);}
+.r-jn0m22{top:54px;}
+.r-jn5ml{right:-5px;}
+.r-jvuzdy{top:-5px;}
+.r-jwli3a{color:rgba(255,255,255,1.00);}
+.r-jxjwwx{left:24px;}
+.r-k200y{align-self:flex-start;}
+.r-k923pl{background-color:rgba(218,212,255,1.00);}
+.r-kcufgn{cursor:ew-resize;}
+.r-key0ze{height:240px;}
+.r-kicko2{border-top-left-radius:4px;}
+.r-kls4rr{padding-right:40px;}
+.r-knv0ih{margin-top:8px;}
+.r-kquydp{right:-4px;}
+.r-ky29hr{bottom:2px;}
+.r-l0gwng{width:200px;}
+.r-l13dpy{z-index:200;}
+.r-l27s25{background-color:rgba(204,207,212,1.00);}
+.r-l9hqf4{box-shadow:0px 1px 1px rgba(0,0,0,0.69);}
+.r-labphf{height:-webkit-fit-content;height:-moz-fit-content;height:fit-content;}
+.r-lchren{margin-right:auto;}
+.r-ld67tl{left:-72px;}
+.r-lk1fr1{icon-color:#8899a8;}
+.r-lltvgl{overflow-x:auto;}
+.r-lqms97{margin-left:-1px;}
+.r-lrsllp{width:24px;}
+.r-lrvibr{-moz-user-select:none;-webkit-user-select:none;user-select:none;}
+.r-lv5dtd{padding-left:110px;}
+.r-lx1l9k{background-image:radial-gradient(rgba(255, 255, 255, 0.1), #ffffff);}
+.r-m0vln2{border-left-color:rgba(43,46,57,1.00);}
+.r-m2pi6t{padding-left:4px;}
+.r-m5arl1{width:2px;}
+.r-m5n4jz{background-color:rgba(220,238,244,1.00);}
+.r-mabqd8{height:32px;}
+.r-majxgm{font-weight:500;}
+.r-mbgqwd{margin-right:24px;}
+.r-mfh4gg{scroll-snap-type:x mandatory;}
+.r-mhe3cw{z-index:10;}
+.r-ms8t9i{border-left-width:3px;}
+.r-na6qhi{;}
+.r-ng8e2f{cursor:-webkit-grab;cursor:-moz-grab;cursor:grab;}
+.r-njhh6i{color:rgba(78,170,200,1.00);}
+.r-nkouq2{box-shadow:-5px 0px 7px rgba(36,42,49,0.60);}
+.r-notknq{border-top-right-radius:4px;}
+.r-nvplwv{animation-timing-function:ease-out;}
+.r-nvvorq{top:3.5px;}
+.r-nwxazl{line-height:40px;}
+.r-nzcix3{border-bottom-color:rgba(227,232,237,1.00);}
+.r-o8yidv{border-top-left-radius:6px;}
+.r-o9xkwf{top:2px;}
+.r-obd0qt{align-items:flex-end;}
+.r-onxxid{background-color:rgba(27,30,33,0.77);}
+.r-op3p1c{width:520px;}
+.r-orgf3d{opacity:0;}
+.r-ou6ah9{border-top-left-radius:0px;}
+.r-oucylx{border-bottom-color:rgba(0,0,0,0.00);}
+.r-oz83uh{box-shadow:0px 1px 1px rgba(0,0,0,0.12);}
+.r-p1pxzi{margin-bottom:0px;}
+.r-pex7a0{color:rgba(130,7,30,1.00);}
+.r-pi8zqv{box-shadow:0px 0px 7px rgba(0,0,0,0.04);}
+.r-pm9dpa{max-height:100%;}
+.r-puj83k{padding-left:24px;}
+.r-py1axk{border-bottom-right-radius:7px;}
+.r-q4m81j{text-align:center;}
+.r-qklmqi{border-bottom-width:1px;}
+.r-qn3fzs{padding-bottom:24px;}
+.r-r1s0sa{background-color:rgba(255,235,233,1.00);}
+.r-r9hte5{-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);}
+.r-redadu{margin-left:var(--sp-spacing-200);}
+.r-rs94m5{background-image:url("data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiIHN0YW5kYWxvbmU9Im5vIj8+CjxzdmcKICAgeG1sbnM6ZGM9Imh0dHA6Ly9wdXJsLm9yZy9kYy9lbGVtZW50cy8xLjEvIgogICB4bWxuczpjYz0iaHR0cDovL2NyZWF0aXZlY29tbW9ucy5vcmcvbnMjIgogICB4bWxuczpyZGY9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkvMDIvMjItcmRmLXN5bnRheC1ucyMiCiAgIHhtbG5zOnN2Zz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciCiAgIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIKICAgdmVyc2lvbj0iMS4xIgogICB2aWV3Qm94PSIwIDAgMSAxIgogICBwcmVzZXJ2ZUFzcGVjdFJhdGlvPSJ4TWluWU1pbiBtZWV0Ij4KICA8cGF0aAogICAgIGQ9Ik0gMC4wNDAzODA1OSwwLjYyNjc3NjcgMC4xNDY0NDY2MSwwLjUyMDcxMDY4IDAuNDI5Mjg5MzIsMC44MDM1NTMzOSAwLjMyMzIyMzMsMC45MDk2MTk0MSB6IE0gMC4yMTcxNTcyOSwwLjgwMzU1MzM5IDAuODUzNTUzMzksMC4xNjcxNTcyOSAwLjk1OTYxOTQxLDAuMjczMjIzMyAwLjMyMzIyMzMsMC45MDk2MTk0MSB6IgogICAgIGlkPSJyZWN0Mzc4MCIKICAgICBzdHlsZT0iZmlsbDojZmZmZmZmO2ZpbGwtb3BhY2l0eToxO3N0cm9rZTpub25lIiAvPgo8L3N2Zz4K");}
+.r-rwqe4o{width:48px;}
+.r-s09aw7{background-image:linear-gradient(to left, #735cff, rgb(109 28 169), rgb(96 104 191), #008847, #FFD139, #b95e04, #d33d3d);}
+.r-s0e3za{padding-left:80px;}
+.r-s8bhmr{min-width:56px;}
+.r-sbs2u6{color:rgba(142,142,252,1.00);}
+.r-sfbmgh{z-index:9999;}
+.r-sga3zk{height:64px;}
+.r-sgscqh{width:250px;}
+.r-t12b5v{border-top-right-radius:0px;}
+.r-t1hnsm{-moz-transition:150ms transform;-webkit-transition:150ms transform;transition:150ms transform;}
+.r-t9hbny{background-color:rgba(211,61,61,1.00);}
+.r-tceitz{left:16px;}
+.r-td7lzs{background-color:var(--sp-color-bg-standout-side);}
+.r-tni569{background-color:rgba(11,79,47,1.00);}
+.r-tskmnb{padding-top:8px;}
+.r-tsynxw{text-transform:uppercase;}
+.r-u529wo{transform:translateY(-2px);}
+.r-u6sd8q{background-repeat:no-repeat;}
+.r-u8s1d{position:absolute;}
+.r-u92y06{background-color:rgba(255,165,0,1.00);}
+.r-u9bbvc{;}
+.r-u9z937{bottom:80px;}
+.r-ubezar{font-size:16px;}
+.r-ud0q2t{letter-spacing:1px;}
+.r-udcg8d{color:rgba(20,23,28,1.00);}
+.r-ufs8t{background-clip:text;}
+.r-uibjmv{font-family:gitbook-code-font, Menlo, monospace;}
+.r-upfvwg{box-shadow:0px 0px 1px rgb(255 255 255 / 30%);}
+.r-uweo6c{bottom:136px;}
+.r-ux9zog{background-color:rgba(51,61,85,1.00);}
+.r-v2u3o6{right:4px;}
+.r-vazrsz{color:rgba(8,8,249,1.00);}
+.r-vq47rg{color:rgba(211,61,61,1.00);}
+.r-vvn4in{background-position:center;}
+.r-w0va4e{margin-right:40px;}
+.r-w65ck8{color:rgba(29,29,162,1.00);}
+.r-w9n8ly{transition-delay:200ms;}
+.r-wc24c3{z-index:20;}
+.r-wech8c{max-width:1280px;}
+.r-wgabs5{border-bottom-width:2px;}
+.r-wk8lta{padding-top:0px;}
+.r-ws9h79{left:4px;}
+.r-wwqw7s{left:-1px;}
+.r-wy61xf{height:72px;}
+.r-x1dlf0{max-width:200px;}
+.r-x3cy2q{background-size:100% 100%;}
+.r-xb2eav{font-size:40px;}
+.r-xd6kpl{padding-bottom:8px;}
+.r-xifl00{left:-4px;}
+.r-xky0vn{background-color:rgba(104,60,17,1.00);}
+.r-xnn892{background-color:rgba(218,251,225,1.00);}
+.r-xx3c9p{animation-name:r-imtty0;}
+.r-xzortm{margin-right:-16px;}
+.r-y3rmyz{width:120px;}
+.r-ye2ihm{background-image:none;}
+.r-yh6aho{background-image:linear-gradient(270deg, #2b2e39 10%, #22272e, #2b2e39 90%);}
+.r-ymefdi{padding-top:var(--sp-spacing-300);}
+.r-yrgyi6{white-space:pre;}
+.r-ywxogp{color:rgba(115,92,255,1.00);}
+.r-z2g584{width:76px;}
+.r-z3s97b{border-right-color:rgba(43,46,57,1.00);}
+.r-z80fyv{height:20px;}
+.r-z9jf92{color:rgba(234,242,247,1.00);}
+.r-zchlnj{right:0px;}
+.r-zh076v{height:100vh;}
+.r-zits6j{right:8%;}
+.r-zo7nv5{-webkit-column-gap:16px;column-gap:16px;}
+.r-ztyd71{background-color:rgba(0,0,0,0.20);}
+@-webkit-keyframes r-1ak6360{0%{background-position-x:0%;}100%{background-position-x:100%;}}
+@-webkit-keyframes r-1hunrpy{0%{transform:translateY(100%);}100%{transform:translateY(0%);}}
+@-webkit-keyframes r-1rx4pb{0%{transform:translateX(-100%);}100%{transform:translateX(400%);}}
+@-webkit-keyframes r-9p3sdl{0%{transform:rotate(0deg);}100%{transform:rotate(360deg);}}
+@-webkit-keyframes r-imtty0{0%{opacity:0;}100%{opacity:1;}}
+@-webkit-keyframes r-ndfo3d{0%{transform:translateY(0%);}100%{transform:translateY(100%);}}
+@-webkit-keyframes r-t2lo5v{0%{opacity:1;}100%{opacity:0;}}
+@keyframes r-1ak6360{0%{background-position-x:0%;}100%{background-position-x:100%;}}
+@keyframes r-1hunrpy{0%{transform:translateY(100%);}100%{transform:translateY(0%);}}
+@keyframes r-1rx4pb{0%{transform:translateX(-100%);}100%{transform:translateX(400%);}}
+@keyframes r-9p3sdl{0%{transform:rotate(0deg);}100%{transform:rotate(360deg);}}
+@keyframes r-imtty0{0%{opacity:0;}100%{opacity:1;}}
+@keyframes r-ndfo3d{0%{transform:translateY(0%);}100%{transform:translateY(100%);}}
+@keyframes r-t2lo5v{0%{opacity:1;}100%{opacity:0;}}
+[stylesheet-group="10"]{}
+[data-rnwrdesktop-166pt5r]{width:max(220px, calc(100vw - max(300px, calc((100vw - 970px) / 2 - 0px)) - 750px - 110px - 300px - 0px));}
+[data-rnwrdesktop-18u37iz]{flex-direction:row;}
+[data-rnwrdesktop-1hy97zq-1q6rxnj-lv5dtd-9111t9]{padding-left:110px;padding-right:410px;padding-top:80px;}
+[data-rnwrdesktop-1jkjb]{margin-left:8px;}
+[data-rnwrdesktop-1kb76zh]{margin-right:8px;}
+[data-rnwrdesktop-1ph75f1]{height:80px;}
+[data-rnwrdesktop-1uwte3a]{padding-bottom:40px;}
+[data-rnwrdesktop-fnigne]{border-right-width:0px;}
+[data-rnwrdesktop-gg6oyi-adyw6z-135wba7-b88u0q]{font-family:gitbook-content-font,-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;font-size:20px;font-weight:700;line-height:24px;}
+[data-rnwrdesktop-gg6oyi-ubezar-135wba7-1kfrs79]{font-family:gitbook-content-font,-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;font-size:16px;font-weight:600;line-height:24px;}
+[data-rnwrdesktop-gg6oyi-xb2eav-1dn12g7-b88u0q]{font-family:gitbook-content-font,-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;font-size:40px;font-weight:700;line-height:48px;}
+[data-rnwrdesktop-h3s6tt]{height:48px;}
+[data-rnwrdesktop-hidden]{display: none;}
+[data-rnwrdesktop-iyfy8q-1qhn6m8-11g3r6m-1h0z5md]{justify-content:flex-start;padding-left:16px;padding-right:24px;width:auto;}
+[data-rnwrdesktop-visible]{display: flex;}
+[stylesheet-group="11"]{}
+@media (max-width: 1024px) and (max-width: 9999999.494850524510111312253100114px) { [data-rnwr1024-eqz5dr] {flex-direction:column;} }
+@media (max-width: 1024px) and (max-width: 9999999.49485052454910510212011610048px) { [data-rnwr1024-1ifxtd0] {margin-bottom:16px;} }
+@media (max-width: 1280px) and (max-width: 9999999.4950564845104105100100101110px) { [data-rnwr1280-hidden] {display: none;} }
+@media (max-width: 1280px) and (max-width: 9999999.49505648454955555510299105px) { [data-rnwr1280-1777fci] {justify-content:center;} }
+@media (max-width: 1430px) and (max-width: 9999999.495251484511810511510598108101px) { [data-rnwr1430-visible] {display: flex;} }
+@media (max-width: 1490px) and (max-width: 9999999.49525748454955555510299105px) { [data-rnwr1490-1777fci] {justify-content:center;} }
+[stylesheet-group="12"]{}
+@media (max-width: 700px) and (max-width: 9999999.5548484510111312253100114px) { [data-rnwr700-eqz5dr] {flex-direction:column;} }
+@media (max-width: 700px) and (max-width: 9999999.55484845103103541111211054511798101122971144549515311998975545491071021141155557px) { [data-rnwr700-gg6oyi-ubezar-135wba7-1kfrs79] {font-family:gitbook-content-font,-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;font-size:16px;font-weight:600;line-height:24px;} }
+@media (max-width: 700px) and (max-width: 9999999.55484845103103541111211054549117105531011015645110119120971221084598565611748113px) { [data-rnwr700-gg6oyi-1ui5ee8-nwxazl-b88u0q] {font-family:gitbook-content-font,-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;font-size:32px;font-weight:700;line-height:40px;} }
+@media (max-width: 700px) and (max-width: 9999999.55484845104105100100101110px) { [data-rnwr700-hidden] {display: none;} }
+@media (max-width: 700px) and (max-width: 9999999.5548484510512110212156113451011175110797px) { [data-rnwr700-iyfy8q-eu3ka] {height:40px;width:auto;} }
+@media (max-width: 700px) and (max-width: 9999999.554848451051211021215611345103121521109751451054850511181044549119981045397504549104481225310910045px) { [data-rnwr700-iyfy8q-gy4na3-i023vh-1wbh5a2-1h0z5md-] {flex-shrink:1;justify-content:flex-start;padding-left:0px;padding-right:16px;width:auto;} }
+@media (max-width: 700px) and (max-width: 9999999.554848451151039751122107px) { [data-rnwr700-sga3zk] {height:64px;} }
+@media (max-width: 700px) and (max-width: 9999999.5548484511810511510598108101px) { [data-rnwr700-visible] {display: flex;} }
+@media (max-width: 700px) and (max-width: 9999999.5548484549511085011652103px) { [data-rnwr700-13l2t4g] {border-right-width:1px;} }
+@media (max-width: 700px) and (max-width: 9999999.5548484557531061221021014549113104110541095645105485051118104px) { [data-rnwr700-95jzfe-1qhn6m8-i023vh] {padding-left:16px;padding-right:16px;padding-top:16px;} }
+@media (max-width: 970px) and (max-width: 9999999.5755484510111312253100114px) { [data-rnwr970-eqz5dr] {flex-direction:column;} }
+@media (max-width: 970px) and (max-width: 9999999.5755484549491191141051201194510711011848105104px) { [data-rnwr970-11wrixw-knv0ih] {margin-left:0px;margin-top:8px;} }
+@media (max-width: 970px) and (max-width: 9999999.5755484554491224954116455311111710848117px) { [data-rnwr970-61z16t-5oul0u] {margin-bottom:8px;margin-right:0px;} }
+[stylesheet-group="13"]{}
+@media (max-width: 700px) and (max-width: 9999999.554848454955555510299105px) { [data-rnwr700-1777fci] {justify-content:center;} }
+[stylesheet-group="20"]{}
+[data-rnwi-1pa6394-]{color:var(--sp-color-text-muted);}
+[data-rnwi-handle="link"] [data-rnwilink--vazrsz-]{color:rgba(8,8,249,1.00);}
+[data-rnwi-handle="nearest"] [data-rnwinearest-37p410-]{color:var(--sp-color-text-base);}
+body:not(.dragging) [data-rnwi--1q9ho9q-hover-focus]:hover, body:not(.dragging) [data-rnwi--1q9ho9q-hover-focus]:focus{color:rgba(48,127,152,1.00);}
+body:not(.dragging) [data-rnwi--9zxvpa--focus]:focus{border-bottom-color:rgba(8,8,249,1.00);border-left-color:rgba(8,8,249,1.00);border-right-color:rgba(8,8,249,1.00);border-top-color:rgba(8,8,249,1.00);}
+body:not(.dragging) [data-rnwi--vazrsz-hover-focus]:hover, body:not(.dragging) [data-rnwi--vazrsz-hover-focus]:focus{color:rgba(8,8,249,1.00);}
+body:not(.dragging) [data-rnwi-190qawg-hover-focus]:hover, body:not(.dragging) [data-rnwi-190qawg-hover-focus]:focus{border-bottom-color:rgba(227,232,237,1.00);border-left-color:rgba(227,232,237,1.00);border-right-color:rgba(227,232,237,1.00);border-top-color:rgba(227,232,237,1.00);}
+body:not(.dragging) [data-rnwi-1b00too-hover]:hover{background-color:rgba(236,239,241,1.00);}
+body:not(.dragging) [data-rnwi-1iadl42-hover-focus]:hover, body:not(.dragging) [data-rnwi-1iadl42-hover-focus]:focus{background-color:var(--sp-color-bg-standout-base);}
+body:not(.dragging) [data-rnwi-5xr8s6-dse9kg-2fw26j-1at97bn-focus-visible]:focus-visible{outline-color:#1d1da2;outline-offset:0px;outline-style:auto;outline-width:2px;}
+body:not(.dragging) [data-rnwi-5xr8s6-dse9kg-2fw26j-3kxdz0-focus-visible]:focus-visible{outline-color:#286A7F;outline-offset:0px;outline-style:auto;outline-width:2px;}
+body:not(.dragging) [data-rnwi-handle="BaseCard"]:hover [data-rnwibasecard--vazrsz-hover-focus], body:not(.dragging) [data-rnwi-handle="BaseCard"]:focus [data-rnwibasecard--vazrsz-hover-focus]{color:rgba(8,8,249,1.00);}
+body:not(.dragging) [data-rnwi-handle="BaseCard"]:hover [data-rnwibasecard--vazrsz-hover]{color:rgba(8,8,249,1.00);}
+body:not(.dragging) [data-rnwi-handle="button"]:hover [data-rnwibutton--vazrsz-hover-focus], body:not(.dragging) [data-rnwi-handle="button"]:focus [data-rnwibutton--vazrsz-hover-focus]{color:rgba(8,8,249,1.00);}
+body:not(.dragging) [data-rnwi-handle="button"]:hover [data-rnwibutton-37p410-hover-focus], body:not(.dragging) [data-rnwi-handle="button"]:focus [data-rnwibutton-37p410-hover-focus]{color:var(--sp-color-text-base);}
+body:not(.dragging) [data-rnwi-handle="link"]:hover [data-rnwilink--1s2hdh9-1ddef8g-hover]{-webkit-text-decoration-line:underline;color:rgba(18,18,108,1.00);text-decoration-line:underline;}
+body:not(.dragging) [data-rnwi-handle="nearest"]:hover [data-rnwinearest--1q9ho9q-hover-focus], body:not(.dragging) [data-rnwi-handle="nearest"]:focus [data-rnwinearest--1q9ho9q-hover-focus]{color:rgba(48,127,152,1.00);}
+body:not(.dragging) [data-rnwi-handle="nearest"]:hover [data-rnwinearest--vazrsz-hover-focus], body:not(.dragging) [data-rnwi-handle="nearest"]:focus [data-rnwinearest--vazrsz-hover-focus]{color:rgba(8,8,249,1.00);}
+body:not(.dragging) [data-rnwi-handle="nearest"]:hover [data-rnwinearest--vazrsz-hover]{color:rgba(8,8,249,1.00);}
+body:not(.dragging) [data-rnwi-handle="nearest"]:hover [data-rnwinearest-37p410-hover-focus], body:not(.dragging) [data-rnwi-handle="nearest"]:focus [data-rnwinearest-37p410-hover-focus]{color:var(--sp-color-text-base);}
+body:not(.dragging) [data-rnwi-u529wo-aq1qub-c1zw6o-1khlhp8-1cut0bx-na6qhi--hover]:hover{box-shadow:0px 12px 13px rgba(0,0,0,0.02);transform:translateY(-2px);}</style>
+                <style>
+                    html,
+                    body {
+                        -webkit-font-smoothing: antialiased;
+                        text-rendering: optimizelegibility;
+                        width: 100%;
+                        min-height: 100vh;
+                        user-select: none;
+                        outline: none;
+                        position: relative;
+                    }
+                    /* Avoid Chrome to see Safari hack */
+                    @supports (-webkit-touch-callout: none) {
+                        html,
+                        body,
+                        .gitbook-root {
+                            /* The hack for Safari */
+                            min-height: -webkit-fill-available;
+                        }
+                    }
+                    .gitbook-root {
+                        display: flex;
+                        min-height: 100vh;
+                    }
+                </style>
+            
+        <script type="text/javascript" defer src="https://cdn.iframe.ly/embed.js" async></script>
+        <script
+            type="text/javascript"
+            defer
+            src="https://cdn.polyfill.io/v2/polyfill.js?features=Intl.~locale.en"
+            crossorigin="anonymous"
+        ></script>
+
+    </head>
+    <body class="theme-color-light theme-radius-rounded">
+        <script>
+                    (function () {
+                        var theme = null;
+
+                        try {
+                          var rawValue = localStorage.getItem("@gitbook/themeMode");
+                          if (rawValue !== null) {
+                            theme = JSON.parse(rawValue);
+                          }
+                        } catch (err) {
+                          // Make an attempt in case it's not a JSON value
+                          if (theme !== "light" && theme !== "dark") {
+                            theme = null;
+                          }
+                        }
+                        if (true && theme && theme !== "light") {
+                          document.body.classList.add("theme-overlay");
+                          document.body.classList.remove("theme-color-light");
+                          document.body.classList.add("theme-color-" + theme);
+                        }
+                      })();
+                </script>
+                   <div class="gitbook-root"><div class="css-175oi2r r-13awgt0 r-12vffkv"><div class="css-175oi2r r-13awgt0 r-12vffkv"><!--$--><header data-rnwrdesktop-1ph75f1="true" data-rnwr700-sga3zk="true" class="r-1xc7w19 r-1phboty r-1yadl64 r-deolkf r-6koalj r-1mlwlqe r-1q142lx r-crgep1 r-ifefl9 r-bcqeeo r-t60dpp r-nzcix3 r-qklmqi r-gtdqiz r-ipm5af r-184en5c r-18u37iz r-1awozwy" style="background-color:rgba(255,255,255,1.00)"><div class="view_manYY publicContainer_11UZS horizontal200_M-XNg alignItemsCenter_Si4Gd withStickyHeader_HQiM-"><div aria-label="Show Table of Content" role="button" data-rnwrdesktop-hidden="true" data-rnwr700-visible="true" data-rnwi-1iadl42-hover-focus="true" data-rnwi-5xr8s6-dse9kg-2fw26j-1at97bn-focus-visible="true" data-rnwi-handle="button" tabindex="0" class="css-175oi2r r-1i6wzkk r-lrvibr r-1loqt21 r-1otgn73 r-1awozwy r-42olwf r-rs99b7 r-18u37iz r-18kxxzh r-1cmwbt1 r-1777fci r-1ny4l3l r-1r8g8re r-1pa6394 r-1kb76zh r-18c69zk r-mk0yit r-1acpoxo" style="transition-duration:0.15s"><svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" data-rnwibutton-37p410-hover-focus="true" data-rnwi-handle="nearest" class="r-h7gdob" style="vertical-align:middle;width:18px;height:18px"><path d="M3 12h18M3 6h18M3 18h18"></path></svg></div><a href="../index.html" aria-label="10 Days Realtime LLM Bootcamp" data-rnwi-5xr8s6-dse9kg-2fw26j-1at97bn-focus-visible="true" data-rnwi-handle="nearest" data-rnwrdesktop-iyfy8q-1qhn6m8-11g3r6m-1h0z5md="true" data-rnwr700-iyfy8q-gy4na3-i023vh-1wbh5a2-1h0z5md-="true" class="css-175oi2r r-1i6wzkk r-lrvibr r-1loqt21 r-1otgn73 r-18u37iz r-1awozwy" style="transition-duration:0.15s" data-testid="public.headerHomeLink"><div class="css-175oi2r r-6wscbn r-1ro0kt6 r-16y2uox r-1wbh5a2 r-18u37iz r-1h0z5md r-1awozwy"><div class="css-175oi2r"><div data-rnwrdesktop-visible="true" data-rnwr700-hidden="true" class="css-175oi2r"><div class="css-175oi2r r-18u37iz r-1awozwy r-1777fci r-z2wwpe r-14lw9ot r-1l94q7l r-88pszg" style="width:36px;height:36px;overflow-x:hidden;overflow-y:hidden"><div class="css-175oi2r r-4qtqp9 r-1q9jyb7 r-1oec5bt r-u8s1d" style="width:72.32px;height:72.32px"><span class="emj-travel _1f680" role="img" title="rocket" aria-label="rocket" style="transform:translate(-50%, -50%) scale(1.13)">🚀</span></div><div class="css-175oi2r r-4qtqp9 r-bnwqim" style="width:24.96px;height:24.96px"><span class="emj-travel _1f680" role="img" title="rocket" aria-label="rocket" style="transform:translate(-50%, -50%) scale(0.39)">🚀</span></div></div></div><div data-rnwrdesktop-hidden="true" data-rnwr700-visible="true" class="css-175oi2r"><div class="css-175oi2r r-18u37iz r-1awozwy r-1777fci r-z2wwpe r-14lw9ot r-1l94q7l r-88pszg" style="width:24px;height:24px;overflow-x:hidden;overflow-y:hidden"><div class="css-175oi2r r-4qtqp9 r-1q9jyb7 r-1oec5bt r-u8s1d" style="width:48px;height:48px"><span class="emj-travel _1f680" role="img" title="rocket" aria-label="rocket" style="transform:translate(-50%, -50%) scale(0.75)">🚀</span></div><div class="css-175oi2r r-4qtqp9 r-bnwqim" style="width:16.64px;height:16.64px"><span class="emj-travel _1f680" role="img" title="rocket" aria-label="rocket" style="transform:translate(-50%, -50%) scale(0.26)">🚀</span></div></div></div></div><div dir="auto" data-rnwrdesktop-gg6oyi-ubezar-135wba7-1kfrs79="true" data-rnwr700-gg6oyi-ubezar-135wba7-1kfrs79="true" class="css-1rynq56 r-1udh08x"><span data-rnwinearest-37p410-="true" data-rnwinearest--vazrsz-hover-focus="true" data-rnwi-handle="nearest" class="css-1qaijid r-8akbws r-krxsd3 r-dnmrzs r-1udh08x r-1udbk01" style="-webkit-line-clamp:2;color:rgba(59,69,78,1.00)">10 Days Realtime LLM Bootcamp</span></div></div></a><div data-rnwr700-hidden="true" class="css-175oi2r r-18u37iz r-17s6mgv r-1awozwy r-1ro0kt6 r-16y2uox r-1wbh5a2 r-1qhn6m8"></div><div data-rnwrdesktop-visible="true" data-rnwr700-hidden="true" class="css-175oi2r"><button type="button" role="switch" aria-label="Switch to dark mode" aria-checked="false" class="view_manYY container_UPXwU lightestParentBackground_FL4je"><div class="view_manYY toggle_siihR toggleSwitch_NtUzX main_kxvok all100_v-7-M toggleLightMode_-FLG4"><svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 16 16" preserveAspectRatio="xMidYMid meet" class="toggleIcon_-vIfn all100_n9QCA" style="vertical-align:middle"><path d="M8 1.167a.6.6 0 0 1 .6.6v1.804c0 .317-.283.558-.6.558s-.6-.24-.6-.558V1.767a.6.6 0 0 1 .6-.6ZM5.405 5.309c.227-.22.264-.587.046-.815L4.5 3.5a.6.6 0 0 0-.849.849l.933.974c.22.23.592.207.821-.014ZM4.054 8c0-.317-.24-.6-.557-.6H1.82a.6.6 0 1 0 0 1.2h1.677c.317 0 .557-.283.557-.6ZM5.21 10.692c-.22-.226-.586-.264-.814-.046L3.5 11.5a.6.6 0 1 0 .848.848l.876-.834c.23-.22.207-.592-.014-.822ZM8 11.884c-.317 0-.6.24-.6.558v1.67a.6.6 0 1 0 1.2 0v-1.67c0-.317-.283-.558-.6-.558ZM10.67 10.723c-.223.215-.264.574-.056.804l.886.973a.6.6 0 0 0 .848-.848l-.846-.932c-.218-.239-.598-.22-.831.003ZM12.008 8c0 .317.24.6.557.6h1.717a.6.6 0 0 0 0-1.2h-1.717c-.317 0-.557.283-.557.6ZM10.616 5.384c.224.224.594.254.818.03L12.5 4.35a.6.6 0 0 0-.849-.849l-1.065 1.066c-.224.224-.194.594.03.818Z"></path><path fill-rule="evenodd" d="M8.05 6.256a1.744 1.744 0 1 0 0 3.488 1.744 1.744 0 0 0 0-3.488ZM5.107 8a2.944 2.944 0 1 1 5.89 0 2.944 2.944 0 0 1-5.89 0Z" clip-rule="evenodd"></path></svg></div></button></div><div data-rnwrdesktop-visible="true" data-rnwr700-hidden="true" class="css-175oi2r r-1jj8364 r-puj83k r-1pyaxff r-11xdecz r-1ro0kt6 r-16y2uox r-1wbh5a2"><div aria-label="Ask or search…" data-rnwi-190qawg-hover-focus="true" data-rnwi-5xr8s6-dse9kg-2fw26j-1at97bn-focus-visible="true" data-rnwi-handle="nearest" tabindex="0" class="css-175oi2r r-1i6wzkk r-lrvibr r-1loqt21 r-1otgn73 r-42olwf r-kdyh1x r-rs99b7 r-1r8g8re r-13qz1uu r-18u37iz r-1wtj0ep r-1awozwy r-1qhn6m8 r-1pyaxff" style="background-color:rgba(59,69,78,0.10);transition-duration:0.15s"><div class="css-175oi2r r-18u37iz r-1awozwy"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 16 16" preserveAspectRatio="xMidYMid meet" class="r-1kb76zh" style="vertical-align:middle;width:16px;height:16px;color:rgba(59,69,78,1.00)"><path fill="currentColor" fill-rule="evenodd" d="M5.5 12.3a3.8 3.8 0 1 0 0-7.6 3.8 3.8 0 0 0 0 7.6Zm0 1.2a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z" clip-rule="evenodd"></path><path fill="currentColor" d="M8.37 12.218a.6.6 0 1 1 .848-.849l2.556 2.556a.6.6 0 0 1-.849.849L8.37 12.218ZM13.842 6a.088.088 0 0 0-.166 0c-.16.456-.259.737-.42.978a2.287 2.287 0 0 1-.528.556c-.232.174-.507.288-.954.472a.096.096 0 0 0 0 .177c.447.185.722.298.954.472.206.155.384.343.527.556.162.242.26.522.42.978a.088.088 0 0 0 .167 0c.16-.456.259-.736.42-.978.144-.213.322-.401.528-.556.232-.174.507-.287.954-.472a.096.096 0 0 0 0-.177c-.447-.184-.722-.298-.954-.472a2.287 2.287 0 0 1-.527-.556c-.162-.241-.26-.522-.42-.978ZM12.28.19a.118.118 0 0 0-.224 0c-.215.613-.348.99-.565 1.315-.192.287-.432.54-.708.747-.313.234-.682.387-1.283.634a.129.129 0 0 0 0 .239c.6.247.97.4 1.283.634.276.207.516.46.708.747.217.324.35.702.565 1.315a.118.118 0 0 0 .224 0c.215-.613.348-.99.565-1.315.192-.287.432-.54.708-.747.313-.234.682-.387 1.283-.634a.129.129 0 0 0 0-.239c-.6-.247-.97-.4-1.283-.634a3.071 3.071 0 0 1-.708-.747c-.217-.324-.35-.702-.565-1.315Z"></path></svg><div dir="auto" data-rnwinearest-37p410-hover-focus="true" data-rnwi-handle="nearest" class="css-1rynq56 r-gg6oyi r-1b43r93 r-16dba41 r-hbpseb" style="color:rgba(59,69,78,1.00)">Ask or search…</div></div><div class="css-175oi2r"><div class="view_manYY gap_PR1GX"><span class="base_qcuoW shortcut_8i--D uiSmall_BjkNA">⌃</span><span class="base_qcuoW shortcut_8i--D uiSmall_BjkNA">K</span></div></div></div></div><div data-rnwrdesktop-hidden="true" data-rnwr700-visible="true" class="css-175oi2r r-1jj8364 r-puj83k r-1pyaxff"><div aria-label="Search" role="button" data-rnwi-5xr8s6-dse9kg-2fw26j-1at97bn-focus-visible="true" data-rnwi-handle="button" tabindex="0" class="css-175oi2r r-1i6wzkk r-lrvibr r-1loqt21 r-1otgn73 r-1awozwy r-42olwf r-rs99b7 r-18u37iz r-18kxxzh r-1cmwbt1 r-1777fci r-1ny4l3l r-z2wwpe r-mabqd8 r-1bnj018 r-mk0yit r-1yvhtrz" style="transition-duration:0.15s"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" data-rnwibutton--vazrsz-hover-focus="true" data-rnwi-handle="nearest" style="vertical-align:middle;width:16px;height:16px;color:rgba(59,69,78,1.00)"><path fill="currentColor" fill-rule="evenodd" d="M10.5 4a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13ZM2 10.5a8.5 8.5 0 1 1 17 0 8.5 8.5 0 0 1-17 0Z" clip-rule="evenodd"></path><path fill="currentColor" fill-rule="evenodd" d="M15.093 15.093a1 1 0 0 1 1.414 0l5.2 5.2a1 1 0 0 1-1.414 1.414l-5.2-5.2a1 1 0 0 1 0-1.414Z" clip-rule="evenodd"></path></svg></div></div></div></header><div data-rnwrdesktop-hidden="true" data-rnwr700-visible="true" class="css-175oi2r"></div><div data-rnwrdesktop-18u37iz="true" data-rnwr700-eqz5dr="true" class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2 r-14lw9ot"><div class="view_manYY publicContainer_11UZS"><div data-rnwrdesktop-visible="true" data-rnwr1430-visible="true" data-rnwr700-hidden="true" class="css-175oi2r r-k200y r-14lw9ot r-18ayb63 r-13l2t4g r-12dqhl9 r-1rnoaur r-gtdqiz r-1fo40xd r-18u37iz r-17s6mgv" data-testid="page.desktopTableOfContents"><nav aria-label="Table of contents" class="r-1oszu61 r-1xc7w19 r-1phboty r-1yadl64 r-deolkf r-6koalj r-1mlwlqe r-1q142lx r-crgep1 r-ifefl9 r-bcqeeo r-t60dpp r-bnwqim r-417010 r-1ipicw7 r-eqz5dr"><div class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2 r-puj83k"><div class="css-175oi2r r-150rngu r-eqz5dr r-11yh6sk r-1rnoaur r-1sncvnh r-1ro0kt6 r-16y2uox r-1wbh5a2"><div class="css-175oi2r r-1yzf0co r-1adewhw"><!--$--><div class="css-175oi2r"><a href="../index.html" data-rnwrdesktop-fnigne="true" data-rnwr700-13l2t4g="true" data-rnwi-1b00too-hover="true" data-rnwi-5xr8s6-dse9kg-2fw26j-1at97bn-focus-visible="true" data-rnwi-handle="nearest" class="css-175oi2r r-1i6wzkk r-lrvibr r-1loqt21 r-1otgn73 r-1awozwy r-42olwf r-z2wwpe r-rs99b7 r-18u37iz r-1ceczpf r-1pn2ns4 r-1kb76zh r-15zivkp" style="transition-duration:0.15s"><div dir="auto" class="css-1rynq56 r-1ro0kt6 r-16y2uox r-1wbh5a2 r-oyd9sg r-gg6oyi r-1b43r93 r-16dba41 r-hbpseb r-1bnj018">Introduction</div><div tabindex="0" class="css-175oi2r r-1i6wzkk r-lrvibr r-1loqt21 r-1otgn73 r-18u37iz r-1awozwy" style="transition-duration:0.15s"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 16 16" preserveAspectRatio="xMidYMid meet" class="r-1bnj018" style="vertical-align:middle;width:18px;height:18px"><path fill="currentColor" fill-rule="evenodd" d="M5.576 3.576a.6.6 0 0 1 .848 0l4 4a.6.6 0 0 1 0 .848l-4 4a.6.6 0 0 1-.848-.848L9.15 8 5.576 4.424a.6.6 0 0 1 0-.848Z" clip-rule="evenodd"></path></svg></div></a></div><!--/$--><!--$--><div class="css-175oi2r"><a href="../basics-of-llm.html" data-rnwrdesktop-fnigne="true" data-rnwr700-13l2t4g="true" data-rnwi-1b00too-hover="true" data-rnwi-5xr8s6-dse9kg-2fw26j-1at97bn-focus-visible="true" data-rnwi-handle="nearest" class="css-175oi2r r-1i6wzkk r-lrvibr r-1loqt21 r-1otgn73 r-1awozwy r-42olwf r-z2wwpe r-rs99b7 r-18u37iz r-1ceczpf r-1pn2ns4 r-1kb76zh r-15zivkp" style="transition-duration:0.15s"><div dir="auto" class="css-1rynq56 r-1ro0kt6 r-16y2uox r-1wbh5a2 r-oyd9sg r-gg6oyi r-1b43r93 r-16dba41 r-hbpseb r-1bnj018">Basics of LLM</div><div tabindex="0" class="css-175oi2r r-1i6wzkk r-lrvibr r-1loqt21 r-1otgn73 r-18u37iz r-1awozwy" style="transition-duration:0.15s"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 16 16" preserveAspectRatio="xMidYMid meet" class="r-1bnj018" style="vertical-align:middle;width:18px;height:18px"><path fill="currentColor" fill-rule="evenodd" d="M5.576 3.576a.6.6 0 0 1 .848 0l4 4a.6.6 0 0 1 0 .848l-4 4a.6.6 0 0 1-.848-.848L9.15 8 5.576 4.424a.6.6 0 0 1 0-.848Z" clip-rule="evenodd"></path></svg></div></a></div><!--/$--><!--$--><div class="css-175oi2r"><a href="../word-vectors-simplified.html" data-rnwrdesktop-fnigne="true" data-rnwr700-13l2t4g="true" data-rnwi-1b00too-hover="true" data-rnwi-5xr8s6-dse9kg-2fw26j-1at97bn-focus-visible="true" data-rnwi-handle="nearest" class="css-175oi2r r-1i6wzkk r-lrvibr r-1loqt21 r-1otgn73 r-1awozwy r-42olwf r-z2wwpe r-rs99b7 r-18u37iz r-1ceczpf r-1pn2ns4 r-1kb76zh r-15zivkp" style="transition-duration:0.15s"><div dir="auto" class="css-1rynq56 r-1ro0kt6 r-16y2uox r-1wbh5a2 r-oyd9sg r-gg6oyi r-1b43r93 r-16dba41 r-hbpseb r-1bnj018">Word Vectors Simplified</div><div tabindex="0" class="css-175oi2r r-1i6wzkk r-lrvibr r-1loqt21 r-1otgn73 r-18u37iz r-1awozwy" style="transition-duration:0.15s"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 16 16" preserveAspectRatio="xMidYMid meet" class="r-1bnj018" style="vertical-align:middle;width:18px;height:18px"><path fill="currentColor" fill-rule="evenodd" d="M5.576 3.576a.6.6 0 0 1 .848 0l4 4a.6.6 0 0 1 0 .848l-4 4a.6.6 0 0 1-.848-.848L9.15 8 5.576 4.424a.6.6 0 0 1 0-.848Z" clip-rule="evenodd"></path></svg></div></a></div><!--/$--><!--$--><div class="css-175oi2r"><a href="../prompt-engineering.html" data-rnwrdesktop-fnigne="true" data-rnwr700-13l2t4g="true" data-rnwi-1b00too-hover="true" data-rnwi-5xr8s6-dse9kg-2fw26j-1at97bn-focus-visible="true" data-rnwi-handle="nearest" class="css-175oi2r r-1i6wzkk r-lrvibr r-1loqt21 r-1otgn73 r-1awozwy r-42olwf r-z2wwpe r-rs99b7 r-18u37iz r-1ceczpf r-1pn2ns4 r-1kb76zh r-15zivkp" style="transition-duration:0.15s"><div dir="auto" class="css-1rynq56 r-1ro0kt6 r-16y2uox r-1wbh5a2 r-oyd9sg r-gg6oyi r-1b43r93 r-16dba41 r-hbpseb r-1bnj018">Prompt Engineering</div><div tabindex="0" class="css-175oi2r r-1i6wzkk r-lrvibr r-1loqt21 r-1otgn73 r-18u37iz r-1awozwy" style="transition-duration:0.15s"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 16 16" preserveAspectRatio="xMidYMid meet" class="r-1bnj018" style="vertical-align:middle;width:18px;height:18px"><path fill="currentColor" fill-rule="evenodd" d="M5.576 3.576a.6.6 0 0 1 .848 0l4 4a.6.6 0 0 1 0 .848l-4 4a.6.6 0 0 1-.848-.848L9.15 8 5.576 4.424a.6.6 0 0 1 0-.848Z" clip-rule="evenodd"></path></svg></div></a></div><!--/$--><!--$--><div class="css-175oi2r"><a href="../retrieval-augmented-generation-and-llm-architecture.html" data-rnwrdesktop-fnigne="true" data-rnwr700-13l2t4g="true" data-rnwi-1b00too-hover="true" data-rnwi-5xr8s6-dse9kg-2fw26j-1at97bn-focus-visible="true" data-rnwi-handle="nearest" class="css-175oi2r r-1i6wzkk r-lrvibr r-1loqt21 r-1otgn73 r-1awozwy r-42olwf r-z2wwpe r-rs99b7 r-18u37iz r-1ceczpf r-1pn2ns4 r-1kb76zh r-15zivkp" style="transition-duration:0.15s"><div dir="auto" class="css-1rynq56 r-1ro0kt6 r-16y2uox r-1wbh5a2 r-oyd9sg r-gg6oyi r-1b43r93 r-16dba41 r-hbpseb r-1bnj018">Retrieval Augmented Generation and LLM Architecture</div><div tabindex="0" class="css-175oi2r r-1i6wzkk r-lrvibr r-1loqt21 r-1otgn73 r-18u37iz r-1awozwy" style="transition-duration:0.15s"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 16 16" preserveAspectRatio="xMidYMid meet" class="r-1bnj018" style="vertical-align:middle;width:18px;height:18px"><path fill="currentColor" fill-rule="evenodd" d="M12.424 5.576a.6.6 0 0 1 0 .848l-4 4a.6.6 0 0 1-.848 0l-4-4a.6.6 0 0 1 .848-.848L8 9.15l3.576-3.575a.6.6 0 0 1 .848 0Z" clip-rule="evenodd"></path></svg></div></a><div class="css-175oi2r r-bnwqim r-1jkjb r-14gqq1x r-5oul0u"><div class="css-175oi2r r-1jkjb"><!--$--><div class="css-175oi2r"><a href="what-is-retrieval-augmented-generation-rag.html" data-rnwrdesktop-fnigne="true" data-rnwr700-13l2t4g="true" data-rnwi-1b00too-hover="true" data-rnwi-5xr8s6-dse9kg-2fw26j-1at97bn-focus-visible="true" data-rnwi-handle="nearest" class="css-175oi2r r-1i6wzkk r-lrvibr r-1loqt21 r-1otgn73 r-1awozwy r-42olwf r-z2wwpe r-rs99b7 r-18u37iz r-1ceczpf r-1pn2ns4 r-1kb76zh r-15zivkp" style="transition-duration:0.15s"><div dir="auto" class="css-1rynq56 r-1ro0kt6 r-16y2uox r-1wbh5a2 r-oyd9sg r-gg6oyi r-1b43r93 r-16dba41 r-hbpseb r-1pa6394">What is Retrieval Augmented Generation (RAG)?</div></a></div><!--/$--></div><div class="css-175oi2r r-1jkjb"><!--$--><div class="css-175oi2r"><a href="primer-to-rag-functioning-and-llm-architecture-pre-trained-and-fine-tuned-llms.html" data-rnwrdesktop-fnigne="true" data-rnwr700-13l2t4g="true" data-rnwi-1b00too-hover="true" data-rnwi-5xr8s6-dse9kg-2fw26j-1at97bn-focus-visible="true" data-rnwi-handle="nearest" class="css-175oi2r r-1i6wzkk r-lrvibr r-1loqt21 r-1otgn73 r-1awozwy r-42olwf r-z2wwpe r-rs99b7 r-18u37iz r-1ceczpf r-1pn2ns4 r-1kb76zh r-15zivkp" style="transition-duration:0.15s"><div dir="auto" class="css-1rynq56 r-1ro0kt6 r-16y2uox r-1wbh5a2 r-oyd9sg r-gg6oyi r-1b43r93 r-16dba41 r-hbpseb r-1pa6394">Primer to RAG Functioning and LLM Architecture: Pre-trained and Fine-tuned LLMs</div></a></div><!--/$--></div><div class="css-175oi2r r-1jkjb"><!--$--><div class="css-175oi2r"><a href="in-context-learning.html" data-rnwrdesktop-fnigne="true" data-rnwr700-13l2t4g="true" data-rnwi-1b00too-hover="true" data-rnwi-5xr8s6-dse9kg-2fw26j-1at97bn-focus-visible="true" data-rnwi-handle="nearest" class="css-175oi2r r-1i6wzkk r-lrvibr r-1loqt21 r-1otgn73 r-1awozwy r-42olwf r-z2wwpe r-rs99b7 r-18u37iz r-1ceczpf r-1pn2ns4 r-1kb76zh r-15zivkp" style="transition-duration:0.15s"><div dir="auto" class="css-1rynq56 r-1ro0kt6 r-16y2uox r-1wbh5a2 r-oyd9sg r-gg6oyi r-1b43r93 r-16dba41 r-hbpseb r-1pa6394">In-Context Learning</div></a></div><!--/$--></div><div class="css-175oi2r r-1jkjb"><!--$--><div class="css-175oi2r"><a href="high-level-llm-architecture-components-for-in-context-learning.html" data-rnwrdesktop-fnigne="true" data-rnwr700-13l2t4g="true" data-rnwi-1b00too-hover="true" data-rnwi-5xr8s6-dse9kg-2fw26j-1at97bn-focus-visible="true" data-rnwi-handle="nearest" class="css-175oi2r r-1i6wzkk r-lrvibr r-1loqt21 r-1otgn73 r-1awozwy r-42olwf r-z2wwpe r-rs99b7 r-18u37iz r-1ceczpf r-1pn2ns4 r-1kb76zh r-15zivkp" style="transition-duration:0.15s"><div dir="auto" class="css-1rynq56 r-1ro0kt6 r-16y2uox r-1wbh5a2 r-oyd9sg r-gg6oyi r-1b43r93 r-16dba41 r-hbpseb r-1pa6394">High level LLM Architecture Components for In-context Learning</div></a></div><!--/$--></div><div class="css-175oi2r r-1jkjb"><!--$--><div class="css-175oi2r"><a href="diving-deeper-llm-architecture-components.html" data-rnwrdesktop-fnigne="true" data-rnwr700-13l2t4g="true" data-rnwi-1b00too-hover="true" data-rnwi-5xr8s6-dse9kg-2fw26j-1at97bn-focus-visible="true" data-rnwi-handle="nearest" class="css-175oi2r r-1i6wzkk r-lrvibr r-1loqt21 r-1otgn73 r-1awozwy r-42olwf r-z2wwpe r-rs99b7 r-18u37iz r-1ceczpf r-1pn2ns4 r-1kb76zh r-15zivkp" style="transition-duration:0.15s"><div dir="auto" class="css-1rynq56 r-1ro0kt6 r-16y2uox r-1wbh5a2 r-oyd9sg r-gg6oyi r-1b43r93 r-16dba41 r-hbpseb r-1pa6394">Diving Deeper: LLM Architecture Components</div></a></div><!--/$--></div><div class="css-175oi2r r-1jkjb"><!--$--><div class="css-175oi2r"><a href="llm-architecture-diagram-and-various-steps.html" data-rnwrdesktop-fnigne="true" data-rnwr700-13l2t4g="true" data-rnwi-1b00too-hover="true" data-rnwi-5xr8s6-dse9kg-2fw26j-1at97bn-focus-visible="true" data-rnwi-handle="nearest" class="css-175oi2r r-1i6wzkk r-lrvibr r-1loqt21 r-1otgn73 r-1awozwy r-42olwf r-z2wwpe r-rs99b7 r-18u37iz r-1ceczpf r-1pn2ns4 r-1kb76zh r-15zivkp" style="transition-duration:0.15s"><div dir="auto" class="css-1rynq56 r-1ro0kt6 r-16y2uox r-1wbh5a2 r-oyd9sg r-gg6oyi r-1b43r93 r-16dba41 r-hbpseb r-1pa6394">LLM Architecture Diagram and Various Steps</div></a></div><!--/$--></div><div class="css-175oi2r r-1jkjb"><!--$--><div class="css-175oi2r"><a href="rag-versus-fine-tuning-and-prompt-engineering.html" data-rnwrdesktop-fnigne="true" data-rnwr700-13l2t4g="true" data-rnwi-1b00too-hover="true" data-rnwi-5xr8s6-dse9kg-2fw26j-1at97bn-focus-visible="true" data-rnwi-handle="nearest" class="css-175oi2r r-1i6wzkk r-lrvibr r-1loqt21 r-1otgn73 r-1awozwy r-42olwf r-z2wwpe r-rs99b7 r-18u37iz r-1ceczpf r-1pn2ns4 r-1kb76zh r-15zivkp" style="transition-duration:0.15s"><div dir="auto" class="css-1rynq56 r-1ro0kt6 r-16y2uox r-1wbh5a2 r-oyd9sg r-gg6oyi r-1b43r93 r-16dba41 r-hbpseb r-1pa6394">RAG versus Fine-Tuning and Prompt Engineering</div></a></div><!--/$--></div><div class="css-175oi2r r-1jkjb"><!--$--><div class="css-175oi2r"><a href="versatility-and-efficiency-in-retrieval-augmented-generation-rag.html" data-rnwrdesktop-fnigne="true" data-rnwr700-13l2t4g="true" data-rnwi-1b00too-hover="true" data-rnwi-5xr8s6-dse9kg-2fw26j-1at97bn-focus-visible="true" data-rnwi-handle="nearest" class="css-175oi2r r-1i6wzkk r-lrvibr r-1loqt21 r-1otgn73 r-1awozwy r-42olwf r-z2wwpe r-rs99b7 r-18u37iz r-1ceczpf r-1pn2ns4 r-1kb76zh r-15zivkp" style="transition-duration:0.15s"><div dir="auto" class="css-1rynq56 r-1ro0kt6 r-16y2uox r-1wbh5a2 r-oyd9sg r-gg6oyi r-1b43r93 r-16dba41 r-hbpseb r-1pa6394">Versatility and Efficiency in Retrieval-Augmented Generation (RAG)</div></a></div><!--/$--></div><div class="css-175oi2r r-1jkjb"><!--$--><div class="css-175oi2r"><a href="key-benefits-of-rag-for-enterprise-grade-llm-applications.html" data-rnwrdesktop-fnigne="true" data-rnwr700-13l2t4g="true" data-rnwi-1b00too-hover="true" data-rnwi-5xr8s6-dse9kg-2fw26j-1at97bn-focus-visible="true" data-rnwi-handle="nearest" class="css-175oi2r r-1i6wzkk r-lrvibr r-1loqt21 r-1otgn73 r-1awozwy r-42olwf r-z2wwpe r-rs99b7 r-18u37iz r-1ceczpf r-1pn2ns4 r-1kb76zh r-15zivkp" style="transition-duration:0.15s"><div dir="auto" class="css-1rynq56 r-1ro0kt6 r-16y2uox r-1wbh5a2 r-oyd9sg r-gg6oyi r-1b43r93 r-16dba41 r-hbpseb r-1pa6394">Key Benefits of RAG for Enterprise-Grade LLM Applications</div></a></div><!--/$--></div><div class="css-175oi2r r-1jkjb"><!--$--><div class="css-175oi2r"><a href="similarity-search-in-vectors-bonus-module.html" data-rnwrdesktop-fnigne="true" data-rnwr700-13l2t4g="true" data-rnwi-1b00too-hover="true" data-rnwi-5xr8s6-dse9kg-2fw26j-1at97bn-focus-visible="true" data-rnwi-handle="nearest" class="css-175oi2r r-1i6wzkk r-lrvibr r-1loqt21 r-1otgn73 r-1awozwy r-42olwf r-z2wwpe r-rs99b7 r-18u37iz r-1ceczpf r-1pn2ns4 r-1kb76zh r-15zivkp" style="transition-duration:0.15s"><div dir="auto" class="css-1rynq56 r-1ro0kt6 r-16y2uox r-1wbh5a2 r-oyd9sg r-gg6oyi r-1b43r93 r-16dba41 r-hbpseb r-1pa6394">Similarity Search in Vectors (Bonus Module)</div></a></div><!--/$--></div><div class="css-175oi2r r-1jkjb"><!--$--><div class="css-175oi2r"><a href="using-knn-and-lsh-to-enhance-similarity-search-in-vector-embeddings-bonus-module.html" data-rnwrdesktop-fnigne="true" data-rnwr700-13l2t4g="true" data-rnwi-5xr8s6-dse9kg-2fw26j-1at97bn-focus-visible="true" data-rnwi-handle="nearest" class="css-175oi2r r-1i6wzkk r-lrvibr r-1loqt21 r-1otgn73 r-1awozwy r-42olwf r-z2wwpe r-rs99b7 r-18u37iz r-1ceczpf r-1pn2ns4 r-1kb76zh r-15zivkp" style="background-color:rgba(133,133,224,0.10);transition-duration:0.15s"><div dir="auto" class="css-1rynq56 r-1ro0kt6 r-16y2uox r-1wbh5a2 r-oyd9sg r-gg6oyi r-1b43r93 r-hbpseb r-vazrsz r-b88u0q">Using kNN and LSH to Enhance Similarity Search in Vector Embeddings (Bonus Module)</div></a></div><!--/$--></div><div class="css-175oi2r r-1jkjb"><!--$--><div class="css-175oi2r"><a href="track-your-progress.html" data-rnwrdesktop-fnigne="true" data-rnwr700-13l2t4g="true" data-rnwi-1b00too-hover="true" data-rnwi-5xr8s6-dse9kg-2fw26j-1at97bn-focus-visible="true" data-rnwi-handle="nearest" class="css-175oi2r r-1i6wzkk r-lrvibr r-1loqt21 r-1otgn73 r-1awozwy r-42olwf r-z2wwpe r-rs99b7 r-18u37iz r-1ceczpf r-1pn2ns4 r-1kb76zh" style="transition-duration:0.15s"><div dir="auto" class="css-1rynq56 r-1ro0kt6 r-16y2uox r-1wbh5a2 r-oyd9sg r-gg6oyi r-1b43r93 r-16dba41 r-hbpseb r-1pa6394">Track your Progress</div></a></div><!--/$--></div><div class="css-175oi2r r-11vxtcu r-1p0dtai r-1d2f490 r-u8s1d r-ipm5af r-92ng3h"></div></div></div><!--/$--><!--$--><div class="css-175oi2r"><a href="../hands-on-development.html" data-rnwrdesktop-fnigne="true" data-rnwr700-13l2t4g="true" data-rnwi-1b00too-hover="true" data-rnwi-5xr8s6-dse9kg-2fw26j-1at97bn-focus-visible="true" data-rnwi-handle="nearest" class="css-175oi2r r-1i6wzkk r-lrvibr r-1loqt21 r-1otgn73 r-1awozwy r-42olwf r-z2wwpe r-rs99b7 r-18u37iz r-1ceczpf r-1pn2ns4 r-1kb76zh r-15zivkp" style="transition-duration:0.15s"><div dir="auto" class="css-1rynq56 r-1ro0kt6 r-16y2uox r-1wbh5a2 r-oyd9sg r-gg6oyi r-1b43r93 r-16dba41 r-hbpseb r-1bnj018">Hands-on Development</div><div tabindex="0" class="css-175oi2r r-1i6wzkk r-lrvibr r-1loqt21 r-1otgn73 r-18u37iz r-1awozwy" style="transition-duration:0.15s"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 16 16" preserveAspectRatio="xMidYMid meet" class="r-1bnj018" style="vertical-align:middle;width:18px;height:18px"><path fill="currentColor" fill-rule="evenodd" d="M5.576 3.576a.6.6 0 0 1 .848 0l4 4a.6.6 0 0 1 0 .848l-4 4a.6.6 0 0 1-.848-.848L9.15 8 5.576 4.424a.6.6 0 0 1 0-.848Z" clip-rule="evenodd"></path></svg></div></a></div><!--/$--><!--$--><div class="css-175oi2r"><a href="../live-interaction-with-jan-chorowski-or-bonus-resource.html" data-rnwrdesktop-fnigne="true" data-rnwr700-13l2t4g="true" data-rnwi-1b00too-hover="true" data-rnwi-5xr8s6-dse9kg-2fw26j-1at97bn-focus-visible="true" data-rnwi-handle="nearest" class="css-175oi2r r-1i6wzkk r-lrvibr r-1loqt21 r-1otgn73 r-1awozwy r-42olwf r-z2wwpe r-rs99b7 r-18u37iz r-1ceczpf r-1pn2ns4 r-1kb76zh r-15zivkp" style="transition-duration:0.15s"><div dir="auto" class="css-1rynq56 r-1ro0kt6 r-16y2uox r-1wbh5a2 r-oyd9sg r-gg6oyi r-1b43r93 r-16dba41 r-hbpseb r-1bnj018">Live Interaction with Jan Chorowski | Bonus Resource</div></a></div><!--/$--><!--$--><div class="css-175oi2r"><a href="../final-project-+-giveaways.html" data-rnwrdesktop-fnigne="true" data-rnwr700-13l2t4g="true" data-rnwi-1b00too-hover="true" data-rnwi-5xr8s6-dse9kg-2fw26j-1at97bn-focus-visible="true" data-rnwi-handle="nearest" class="css-175oi2r r-1i6wzkk r-lrvibr r-1loqt21 r-1otgn73 r-1awozwy r-42olwf r-z2wwpe r-rs99b7 r-18u37iz r-1ceczpf r-1pn2ns4 r-1kb76zh" style="transition-duration:0.15s"><div dir="auto" class="css-1rynq56 r-1ro0kt6 r-16y2uox r-1wbh5a2 r-oyd9sg r-gg6oyi r-1b43r93 r-16dba41 r-hbpseb r-1bnj018">Final Project + Giveaways</div><div tabindex="0" class="css-175oi2r r-1i6wzkk r-lrvibr r-1loqt21 r-1otgn73 r-18u37iz r-1awozwy" style="transition-duration:0.15s"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 16 16" preserveAspectRatio="xMidYMid meet" class="r-1bnj018" style="vertical-align:middle;width:18px;height:18px"><path fill="currentColor" fill-rule="evenodd" d="M5.576 3.576a.6.6 0 0 1 .848 0l4 4a.6.6 0 0 1 0 .848l-4 4a.6.6 0 0 1-.848-.848L9.15 8 5.576 4.424a.6.6 0 0 1 0-.848Z" clip-rule="evenodd"></path></svg></div></a></div><!--/$--></div></div></div><div class="css-175oi2r r-1p0dtai r-u8s1d r-13qz1uu r-184en5c"><div class="css-175oi2r r-10ptun7" style="background-image:linear-gradient(3.141592653589793rad,#ffffff00,#ffffff)"></div><div class="css-175oi2r r-ymttw5 r-1l7z4oj r-14lw9ot"><a href="https://www.gitbook.com/?utm_source=content&amp;utm_medium=trademark&amp;utm_campaign=6FUyhX0UiywvK1rz0m1N" data-rnwi--1q9ho9q-hover-focus="true" data-rnwi-5xr8s6-dse9kg-2fw26j-3kxdz0-focus-visible="true" data-rnwi-handle="nearest" class="css-175oi2r r-1i6wzkk r-lrvibr r-1loqt21 r-1otgn73 r-18u37iz r-1awozwy r-1b00too r-1xfd6ze r-1yzf0co r-ymttw5" style="transition-duration:0.15s"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 32 30" preserveAspectRatio="xMidYMid meet" data-rnwi--1q9ho9q-hover-focus="true" data-rnwi-5xr8s6-dse9kg-2fw26j-3kxdz0-focus-visible="true" data-rnwi-handle="nearest" class="r-1pa6394" style="vertical-align:middle;width:28px;height:28px"><path fill="currentColor" d="M13.478 15.34c1.564.904 2.347 1.355 3.206 1.356.859 0 1.642-.45 3.208-1.35l9.983-5.738a1.452 1.452 0 0 0 0-2.519l-9.987-5.74C18.324.449 17.542-.001 16.683 0c-.858 0-1.64.45-3.204 1.351L4.894 6.295l-.125.072A9.638 9.638 0 0 0 0 14.617v.289a9.639 9.639 0 0 0 4.885 8.316l5.377 3.105c3.134 1.809 4.7 2.714 6.422 2.714 1.72 0 3.288-.903 6.422-2.71l5.677-3.273c1.57-.904 2.355-1.357 2.786-2.103.431-.746.431-1.652.431-3.463v-3.5a1.385 1.385 0 0 0-2.076-1.202l-11.64 6.692c-.782.449-1.172.673-1.6.673-.43 0-.82-.224-1.601-.672l-7.88-4.523c-.394-.226-.591-.34-.75-.36a.803.803 0 0 0-.846.493c-.06.148-.06.376-.057.83.002.336.003.503.034.657.07.345.252.658.517.89.118.103.263.187.553.354l8.424 4.862c.784.452 1.175.678 1.605.678.43 0 .822-.226 1.606-.677l10.325-5.952c.267-.154.401-.231.502-.173.1.058.1.212.1.521v1.588c0 .453 0 .68-.108.866-.108.186-.304.3-.696.525l-8.516 4.91c-1.568.903-2.352 1.355-3.213 1.355-.86 0-1.643-.453-3.21-1.359l-7.968-4.602-.05-.029a5.472 5.472 0 0 1-2.71-4.697v-1.515c0-1.068.568-2.055 1.492-2.59a2.638 2.638 0 0 1 2.641-.003l6.6 3.809Z"></path></svg><div class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2 r-1qhn6m8"><div dir="auto" data-rnwinearest--1q9ho9q-hover-focus="true" data-rnwi-handle="nearest" class="css-1rynq56 r-gg6oyi r-1b43r93 r-16dba41 r-hbpseb r-1pa6394">Powered By <span class="css-1qaijid r-b88u0q">GitBook</span></div></div></a></div></div></nav></div><div class="css-175oi2r r-13awgt0" style="background-color:rgba(255,255,255,1.00)"><!--$--><div class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2 r-18u37iz"><div class="view_manYY pageWrapper_BkhZI vertical0_jPhI0 horizontalAuto_xck7M flex1_qv0N2 column_Pzect"><main class="r-1oszu61 r-1xc7w19 r-1phboty r-1yadl64 r-deolkf r-6koalj r-crgep1 r-ifefl9 r-bcqeeo r-t60dpp r-bnwqim r-417010 r-1ro0kt6 r-16y2uox r-1wbh5a2 r-eqz5dr"><div class="view_manYY blockWrapper_8BIg7 vertical0_jPhI0 horizontalAuto_xck7M"><div data-rnwr1280-1777fci="true" class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2 r-18u37iz"><div class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2"><div class="view_manYY relative_kNGzo column_Pzect top700_934HS bottom600_DtxRs"><div class="view_manYY pageControls_65PGe revealOnHover_QTUA- top200_Mzy9L row_apb2Z columnGap100_WpE2b"><div role="button" data-rnwi-5xr8s6-dse9kg-2fw26j-1at97bn-focus-visible="true" data-rnwi-handle="button" tabindex="0" class="css-175oi2r r-1i6wzkk r-lrvibr r-1loqt21 r-1otgn73 r-1awozwy r-42olwf r-rs99b7 r-18u37iz r-18kxxzh r-1cmwbt1 r-1777fci r-1ny4l3l r-z2wwpe r-z80fyv r-1pn2ns4 r-1bnj018 r-gy4na3" style="transition-duration:0.15s"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 16 16" preserveAspectRatio="xMidYMid meet" data-rnwibutton--vazrsz-hover-focus="true" data-rnwi-handle="nearest" class="r-h7gdob" style="vertical-align:middle;width:16px;height:16px"><path fill="currentColor" fill-rule="evenodd" d="M15.6 4A2.6 2.6 0 0 0 13 1.4H3A2.6 2.6 0 0 0 .4 4v6A2.6 2.6 0 0 0 3 12.6h.092v2.117a.6.6 0 0 0 .987.46l2.672-2.248a1.4 1.4 0 0 1 .901-.329H13a2.6 2.6 0 0 0 2.6-2.6V4ZM13 2.6A1.4 1.4 0 0 1 14.4 4v6a1.4 1.4 0 0 1-1.4 1.4H7.652a2.6 2.6 0 0 0-1.673.61L4.292 13.43V12a.6.6 0 0 0-.6-.6H3A1.4 1.4 0 0 1 1.6 10V4A1.4 1.4 0 0 1 3 2.6h10Z" clip-rule="evenodd"></path></svg><div class="css-175oi2r r-1wbh5a2"><div dir="auto" data-rnwibutton--vazrsz-hover-focus="true" data-rnwi-handle="nearest" class="css-1rynq56 r-dnmrzs r-1udh08x r-1udbk01 r-3s2u2q r-1iln25a r-gg6oyi r-1enofrn r-16dba41 r-14yzgew r-h7gdob">Comment on page</div></div></div></div><div class="view_manYY row_apb2Z justifySpaceBetween_WG1-N alignItemsCenter_Si4Gd"><div class="css-175oi2r r-18u37iz r-1ro0kt6 r-16y2uox r-1wbh5a2"><div data-rnwrdesktop-h3s6tt="true" data-rnwr700-iyfy8q-eu3ka="true" class="css-175oi2r r-18u37iz r-17s6mgv r-1awozwy"></div><div class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2"><h1 data-rnwrdesktop-gg6oyi-xb2eav-1dn12g7-b88u0q="true" data-rnwr700-gg6oyi-1ui5ee8-nwxazl-b88u0q="true" class="r-1xnzce8 r-crgep1 r-37p410" data-testid="page.title">Using kNN and LSH to Enhance Similarity Search in Vector Embeddings (Bonus Module)</h1></div></div><div aria-label="Page actions" role="button" data-rnwi-1iadl42-hover-focus="true" data-rnwi-5xr8s6-dse9kg-2fw26j-1at97bn-focus-visible="true" data-rnwi-handle="button" tabindex="0" class="css-175oi2r r-1i6wzkk r-lrvibr r-1loqt21 r-1otgn73 r-1awozwy r-42olwf r-rs99b7 r-18u37iz r-18kxxzh r-1cmwbt1 r-1777fci r-1ny4l3l r-1r8g8re r-1pa6394 r-18c69zk r-mk0yit r-1acpoxo" style="transition-duration:0.15s" data-testid="pageToolbar.paletteButton"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 16 16" preserveAspectRatio="xMidYMid meet" data-rnwibutton-37p410-hover-focus="true" data-rnwi-handle="nearest" class="r-h7gdob" style="vertical-align:middle;width:18px;height:18px"><path fill="currentColor" d="M8 2.4a1.1 1.1 0 1 0 0 2.2 1.1 1.1 0 0 0 0-2.2ZM8 6.9a1.1 1.1 0 1 0 0 2.2 1.1 1.1 0 0 0 0-2.2ZM8 11.4a1.1 1.1 0 1 0 0 2.2 1.1 1.1 0 0 0 0-2.2Z"></path></svg></div></div><div class="view_manYY row_apb2Z justifySpaceBetween_WG1-N alignItemsCenter_Si4Gd"><div class="css-175oi2r r-1wzrnnt r-1ro0kt6 r-16y2uox r-1wbh5a2"></div></div></div></div></div></div><div data-rnwrdesktop-1uwte3a="true" class="css-175oi2r"><div class="css-175oi2r r-bnwqim"><div data-testid="page.contentEditor" data-slate-editor="true" data-document-key="b5b9bc6da91849a8b7781f3d1f397bca" data-key="b5b9bc6da91849a8b7781f3d1f397bca" autoCorrect="on" spellcheck="true" style="outline:none;white-space:pre-wrap;word-wrap:break-word"><div><div class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2"><div class="view_manYY blockWrapper_8BIg7 vertical0_jPhI0 horizontalAuto_xck7M"><div data-rnwr1490-1777fci="true" data-rnwr700-1777fci="true" class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2 r-18u37iz r-1777fci"><div class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2"><div class="css-175oi2r"><div class="css-175oi2r"><div data-key="ccff5ea3527a4a13ba9103c7020d8a66" class="view_manYY relative_kNGzo column_Pzect vertical400_IGNdU top200_FwkHm bottom200_HuRwz"><div data-block-content="ccff5ea3527a4a13ba9103c7020d8a66" class="r-1oszu61 r-1xc7w19 r-1phboty r-1yadl64 r-deolkf r-6koalj r-eqz5dr r-crgep1 r-ifefl9 r-bcqeeo r-t60dpp r-bnwqim r-417010 r-1ro0kt6 r-16y2uox r-1wbh5a2"><div dir="auto" class="css-1rynq56 r-gg6oyi r-ubezar r-1o2nx2a r-135wba7 r-37p410 r-fdjqy7 r-1xnzce8"><span data-key="b524d4fcb9ee4feb8a8a0284629eaefa"><span data-offset-key="b524d4fcb9ee4feb8a8a0284629eaefa:0">Diving into the intricacies of kNN (k-Nearest-Neighbors) and LSH (Locality Sensitive Hashing), we find ourselves at the intersection of mathematics, data science, and algorithmic strategy. </span></span></div></div></div></div></div></div></div></div></div></div><div><div class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2"><div class="view_manYY blockWrapper_8BIg7 vertical0_jPhI0 horizontalAuto_xck7M"><div data-rnwr1490-1777fci="true" data-rnwr700-1777fci="true" class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2 r-18u37iz r-1777fci"><div class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2"><div class="css-175oi2r"><div class="css-175oi2r"><div data-key="4d0d972619514222be7a7229eb7c71cc" class="view_manYY relative_kNGzo column_Pzect vertical400_IGNdU top600_sT-91 bottom200_HuRwz"><div data-block-content="4d0d972619514222be7a7229eb7c71cc" class="r-1oszu61 r-1xc7w19 r-1phboty r-1yadl64 r-deolkf r-6koalj r-eqz5dr r-crgep1 r-ifefl9 r-bcqeeo r-t60dpp r-bnwqim r-417010 r-1ro0kt6 r-16y2uox r-1wbh5a2"><h3 class="r-1xc7w19 r-1phboty r-1yadl64 r-deolkf r-6koalj r-1mlwlqe r-1q142lx r-crgep1 r-ifefl9 r-bcqeeo r-t60dpp r-bnwqim r-417010 r-18u37iz r-obd0qt" id="knn-k-nearest-neighbors-in-the-context-of-vector-embeddings"><div dir="auto" data-rnwrdesktop-gg6oyi-adyw6z-135wba7-b88u0q="true" data-rnwr700-gg6oyi-ubezar-135wba7-1kfrs79="true" class="css-1rynq56 r-37p410 r-fdjqy7 r-1xnzce8" id="text-knn-k-nearest-neighbors-in-the-context-of-vector-embeddings"><span data-key="7acfed0e69ce41ba90631bc613ebc488"><span data-offset-key="7acfed0e69ce41ba90631bc613ebc488:0">kNN (k-Nearest-Neighbors) in the Context of Vector Embeddings</span></span><a href="using-knn-and-lsh-to-enhance-similarity-search-in-vector-embeddings-bonus-module.html#knn-k-nearest-neighbors-in-the-context-of-vector-embeddings" aria-label="Direct link to heading" data-rnwi-1pa6394-="true" data-rnwi--vazrsz-hover-focus="true" data-rnwi-5xr8s6-dse9kg-2fw26j-1at97bn-focus-visible="true" data-rnwi-handle="nearest" class="css-1qaijid r-1awozwy r-xoduu5 r-1jkjb r-orgf3d r-1loqt21"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 16 16" preserveAspectRatio="xMidYMid meet" role="presentation" style="vertical-align:middle;width:18px;height:18px"><path fill="currentColor" fill-rule="evenodd" d="M7.42 1.925a.6.6 0 0 1 .405.745L7.167 4.9h3.998l.76-2.57a.6.6 0 1 1 1.15.34l-.659 2.23H14a.6.6 0 0 1 0 1.2h-1.938l-1.123 3.8H13a.6.6 0 0 1 0 1.2h-2.415l-.76 2.57a.6.6 0 0 1-1.15-.34l.658-2.23H5.335l-.76 2.57a.6.6 0 1 1-1.15-.34l.658-2.23H2a.6.6 0 1 1 0-1.2h2.438l1.123-3.8H3a.6.6 0 0 1 0-1.2h2.915l.76-2.57a.6.6 0 0 1 .745-.405ZM6.812 6.1 5.689 9.9h3.999l1.123-3.8H6.812Z" clip-rule="evenodd"></path></svg></a></div></h3></div></div></div></div></div></div></div></div></div><div><div class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2"><div class="view_manYY blockWrapper_8BIg7 vertical0_jPhI0 horizontalAuto_xck7M"><div data-rnwr1490-1777fci="true" data-rnwr700-1777fci="true" class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2 r-18u37iz r-1777fci"><div class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2"><div class="css-175oi2r"><div class="css-175oi2r"><div data-key="3ef9779a4f0a4ce2a4bc16729441904f" class="view_manYY relative_kNGzo column_Pzect vertical400_IGNdU top200_FwkHm bottom200_HuRwz"><div data-block-content="3ef9779a4f0a4ce2a4bc16729441904f" class="r-1oszu61 r-1xc7w19 r-1phboty r-1yadl64 r-deolkf r-6koalj r-eqz5dr r-crgep1 r-ifefl9 r-bcqeeo r-t60dpp r-bnwqim r-417010 r-1ro0kt6 r-16y2uox r-1wbh5a2"><div dir="auto" class="css-1rynq56 r-gg6oyi r-ubezar r-1o2nx2a r-135wba7 r-37p410 r-fdjqy7 r-1xnzce8"><span data-key="7714e177d2f34bbeb902c8681921da95"><span data-offset-key="7714e177d2f34bbeb902c8681921da95:0">If you&#x27;ve been exploring this domain, you might have come across mentions of kNN (k-Nearest-Neighbors). So, what exactly is kNN? Why do we need it, especially when we already have tools like cosine similarity at our disposal? Let&#x27;s understand.</span></span></div></div></div></div></div></div></div></div></div></div><div><div class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2"><div class="view_manYY blockWrapper_8BIg7 vertical0_jPhI0 horizontalAuto_xck7M"><div data-rnwr1490-1777fci="true" data-rnwr700-1777fci="true" class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2 r-18u37iz r-1777fci"><div class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2"><div class="css-175oi2r"><div class="css-175oi2r"><div data-key="8f6e4576948340049667cde8778b2197" class="view_manYY relative_kNGzo column_Pzect vertical400_IGNdU top400_n25lP bottom400_6eeBF"><div data-block-content="8f6e4576948340049667cde8778b2197" class="r-1oszu61 r-1xc7w19 r-1phboty r-1yadl64 r-deolkf r-6koalj r-eqz5dr r-crgep1 r-ifefl9 r-bcqeeo r-t60dpp r-bnwqim r-417010 r-1ro0kt6 r-16y2uox r-1wbh5a2"><ul data-key="8f6e4576948340049667cde8778b2197" class="r-1oszu61 r-1xc7w19 r-1phboty r-1yadl64 r-deolkf r-6koalj r-1mlwlqe r-eqz5dr r-1q142lx r-crgep1 r-ifefl9 r-bcqeeo r-t60dpp r-bnwqim r-417010"><div class="css-175oi2r"><div class="css-175oi2r"><li data-key="81de1560e3d242d09e3153e90fad92c8" class="view_manYY relative_kNGzo column_Pzect vertical400_IGNdU top0_4AOU1 bottom100_Y7CMU"><div data-block-content="81de1560e3d242d09e3153e90fad92c8" class="r-1oszu61 r-1xc7w19 r-1phboty r-1yadl64 r-deolkf r-crgep1 r-ifefl9 r-bcqeeo r-t60dpp r-417010 r-1ro0kt6 r-16y2uox r-1wbh5a2 r-6koalj r-18u37iz r-bnwqim"><div contenteditable="false" class="r-1xc7w19 r-1phboty r-1yadl64 r-deolkf r-1mlwlqe r-1q142lx r-crgep1 r-ifefl9 r-bcqeeo r-t60dpp r-bnwqim r-417010 r-1awozwy r-6koalj r-18u37iz r-1jkjb r-1kb76zh" style="height:24px"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 16" preserveAspectRatio="xMidYMid meet" class="r-37p410" style="vertical-align:middle;width:12px;height:12px"><path fill="currentColor" fill-rule="evenodd" d="M0 8c0-2.2 1.8-4 4-4s4 1.8 4 4-1.8 4-4 4-4-1.8-4-4z"></path></svg></div><div class="css-175oi2r r-13awgt0"><div data-key="0538b68e9f7544b2a8b040f8abd013a9" class="r-1oszu61 r-1xc7w19 r-1phboty r-1yadl64 r-deolkf r-6koalj r-1mlwlqe r-eqz5dr r-1q142lx r-crgep1 r-ifefl9 r-bcqeeo r-t60dpp r-bnwqim r-417010"><div dir="auto" class="css-1rynq56 r-gg6oyi r-ubezar r-1o2nx2a r-135wba7 r-37p410 r-fdjqy7 r-1xnzce8"><span data-key="60221f15a8634334b1942c1040457216"><strong data-slate-leaf="true" data-offset-key="60221f15a8634334b1942c1040457216:0" class="r-crgep1 r-b88u0q">Role of kNN with Vector Embeddings</strong><span data-offset-key="60221f15a8634334b1942c1040457216:1">: Once we have vector representations of data and a measure of similarity like cosine similarity, the next logical step is to leverage these vectors for practical applications. kNN is a powerful algorithm that does just that. Given a query vector, it identifies the &#x27;k&#x27; vectors in the dataset that are closest (most similar) to the query.</span></span></div></div></div></div></li></div></div><div class="css-175oi2r"><div class="css-175oi2r"><li data-key="c0dc3228f2e3403f9107a25add97232a" class="view_manYY relative_kNGzo column_Pzect vertical400_IGNdU top100_QcUCv bottom100_Y7CMU"><div data-block-content="c0dc3228f2e3403f9107a25add97232a" class="r-1oszu61 r-1xc7w19 r-1phboty r-1yadl64 r-deolkf r-crgep1 r-ifefl9 r-bcqeeo r-t60dpp r-417010 r-1ro0kt6 r-16y2uox r-1wbh5a2 r-6koalj r-18u37iz r-bnwqim"><div contenteditable="false" class="r-1xc7w19 r-1phboty r-1yadl64 r-deolkf r-1mlwlqe r-1q142lx r-crgep1 r-ifefl9 r-bcqeeo r-t60dpp r-bnwqim r-417010 r-1awozwy r-6koalj r-18u37iz r-1jkjb r-1kb76zh" style="height:24px"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 16" preserveAspectRatio="xMidYMid meet" class="r-37p410" style="vertical-align:middle;width:12px;height:12px"><path fill="currentColor" fill-rule="evenodd" d="M0 8c0-2.2 1.8-4 4-4s4 1.8 4 4-1.8 4-4 4-4-1.8-4-4z"></path></svg></div><div class="css-175oi2r r-13awgt0"><div data-key="9614fd10c8c141db80e7bc5cf803cff7" class="r-1oszu61 r-1xc7w19 r-1phboty r-1yadl64 r-deolkf r-6koalj r-1mlwlqe r-eqz5dr r-1q142lx r-crgep1 r-ifefl9 r-bcqeeo r-t60dpp r-bnwqim r-417010"><div dir="auto" class="css-1rynq56 r-gg6oyi r-ubezar r-1o2nx2a r-135wba7 r-37p410 r-fdjqy7 r-1xnzce8"><span data-key="5656213d3be24be98f025dc403fde868"><strong data-slate-leaf="true" data-offset-key="5656213d3be24be98f025dc403fde868:0" class="r-crgep1 r-b88u0q">Why kNN?</strong><span data-offset-key="5656213d3be24be98f025dc403fde868:1">: kNN hinges on the premise that similar data points in a vector space are likely to share attributes or classifications. For instance, in a text classification problem, if a majority of your &#x27;k&#x27; nearest vectors correspond to articles about &#x27;F1 Racing&#x27;, it&#x27;s likely that the query article is also related to F1 Racing.</span></span></div></div></div></div></li></div></div><div class="css-175oi2r"><div class="css-175oi2r"><li data-key="0d8226dd20bb4c6b852f48c8260ee6aa" class="view_manYY relative_kNGzo column_Pzect vertical400_IGNdU top100_QcUCv bottom0_fXfxl"><div data-block-content="0d8226dd20bb4c6b852f48c8260ee6aa" class="r-1oszu61 r-1xc7w19 r-1phboty r-1yadl64 r-deolkf r-crgep1 r-ifefl9 r-bcqeeo r-t60dpp r-417010 r-1ro0kt6 r-16y2uox r-1wbh5a2 r-6koalj r-18u37iz r-bnwqim"><div contenteditable="false" class="r-1xc7w19 r-1phboty r-1yadl64 r-deolkf r-1mlwlqe r-1q142lx r-crgep1 r-ifefl9 r-bcqeeo r-t60dpp r-bnwqim r-417010 r-1awozwy r-6koalj r-18u37iz r-1jkjb r-1kb76zh" style="height:24px"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 16" preserveAspectRatio="xMidYMid meet" class="r-37p410" style="vertical-align:middle;width:12px;height:12px"><path fill="currentColor" fill-rule="evenodd" d="M0 8c0-2.2 1.8-4 4-4s4 1.8 4 4-1.8 4-4 4-4-1.8-4-4z"></path></svg></div><div class="css-175oi2r r-13awgt0"><div data-key="7c70cca7f7434a578f4576031d722c66" class="r-1oszu61 r-1xc7w19 r-1phboty r-1yadl64 r-deolkf r-6koalj r-1mlwlqe r-eqz5dr r-1q142lx r-crgep1 r-ifefl9 r-bcqeeo r-t60dpp r-bnwqim r-417010"><div dir="auto" class="css-1rynq56 r-gg6oyi r-ubezar r-1o2nx2a r-135wba7 r-37p410 r-fdjqy7 r-1xnzce8"><span data-key="028f714651784c6598d6c95f3e128129"><strong data-slate-leaf="true" data-offset-key="028f714651784c6598d6c95f3e128129:0" class="r-crgep1 r-b88u0q">The kNN approach has gained success due to</strong><span data-offset-key="028f714651784c6598d6c95f3e128129:1"> its straightforward nature. The basic version is not only easy to implement but also offers high accuracy. Unlike many alternative methods, kNN isn&#x27;t a black box and offers </span><strong data-slate-leaf="true" data-offset-key="028f714651784c6598d6c95f3e128129:2" class="r-crgep1 r-b88u0q">explainability</strong><span data-offset-key="028f714651784c6598d6c95f3e128129:3">, meaning its decision-making process is clear and understandable. This transparency enhances user trust in the system, and thus easier adoption within enterprises.</span></span></div></div></div></div></li></div></div></ul></div></div></div></div></div></div></div></div></div><div><div class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2"><div class="view_manYY blockWrapper_8BIg7 vertical0_jPhI0 horizontalAuto_xck7M"><div data-rnwr1490-1777fci="true" data-rnwr700-1777fci="true" class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2 r-18u37iz r-1777fci"><div class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2"><div class="css-175oi2r"><div class="css-175oi2r"><div data-key="eb7d7118bc684a2797aec72c528eb537" class="view_manYY relative_kNGzo column_Pzect vertical400_IGNdU top600_sT-91 bottom200_HuRwz"><div data-block-content="eb7d7118bc684a2797aec72c528eb537" class="r-1oszu61 r-1xc7w19 r-1phboty r-1yadl64 r-deolkf r-6koalj r-eqz5dr r-crgep1 r-ifefl9 r-bcqeeo r-t60dpp r-bnwqim r-417010 r-1ro0kt6 r-16y2uox r-1wbh5a2"><h3 class="r-1xc7w19 r-1phboty r-1yadl64 r-deolkf r-6koalj r-1mlwlqe r-1q142lx r-crgep1 r-ifefl9 r-bcqeeo r-t60dpp r-bnwqim r-417010 r-18u37iz r-obd0qt" id="challenges-with-knn"><div dir="auto" data-rnwrdesktop-gg6oyi-adyw6z-135wba7-b88u0q="true" data-rnwr700-gg6oyi-ubezar-135wba7-1kfrs79="true" class="css-1rynq56 r-37p410 r-fdjqy7 r-1xnzce8" id="text-challenges-with-knn"><span data-key="5c4ab533002442ceb7a618db36e47c89"><span data-offset-key="5c4ab533002442ceb7a618db36e47c89:0">Challenges with kNN</span></span><a href="using-knn-and-lsh-to-enhance-similarity-search-in-vector-embeddings-bonus-module.html#challenges-with-knn" aria-label="Direct link to heading" data-rnwi-1pa6394-="true" data-rnwi--vazrsz-hover-focus="true" data-rnwi-5xr8s6-dse9kg-2fw26j-1at97bn-focus-visible="true" data-rnwi-handle="nearest" class="css-1qaijid r-1awozwy r-xoduu5 r-1jkjb r-orgf3d r-1loqt21"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 16 16" preserveAspectRatio="xMidYMid meet" role="presentation" style="vertical-align:middle;width:18px;height:18px"><path fill="currentColor" fill-rule="evenodd" d="M7.42 1.925a.6.6 0 0 1 .405.745L7.167 4.9h3.998l.76-2.57a.6.6 0 1 1 1.15.34l-.659 2.23H14a.6.6 0 0 1 0 1.2h-1.938l-1.123 3.8H13a.6.6 0 0 1 0 1.2h-2.415l-.76 2.57a.6.6 0 0 1-1.15-.34l.658-2.23H5.335l-.76 2.57a.6.6 0 1 1-1.15-.34l.658-2.23H2a.6.6 0 1 1 0-1.2h2.438l1.123-3.8H3a.6.6 0 0 1 0-1.2h2.915l.76-2.57a.6.6 0 0 1 .745-.405ZM6.812 6.1 5.689 9.9h3.999l1.123-3.8H6.812Z" clip-rule="evenodd"></path></svg></a></div></h3></div></div></div></div></div></div></div></div></div><div><div class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2"><div class="view_manYY blockWrapper_8BIg7 vertical0_jPhI0 horizontalAuto_xck7M"><div data-rnwr1490-1777fci="true" data-rnwr700-1777fci="true" class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2 r-18u37iz r-1777fci"><div class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2"><div class="css-175oi2r"><div class="css-175oi2r"><div data-key="041261d0301d403abe71b3f0bebdb155" class="view_manYY relative_kNGzo column_Pzect vertical400_IGNdU top400_n25lP bottom400_6eeBF"><div data-block-content="041261d0301d403abe71b3f0bebdb155" class="r-1oszu61 r-1xc7w19 r-1phboty r-1yadl64 r-deolkf r-6koalj r-eqz5dr r-crgep1 r-ifefl9 r-bcqeeo r-t60dpp r-bnwqim r-417010 r-1ro0kt6 r-16y2uox r-1wbh5a2"><ul data-key="041261d0301d403abe71b3f0bebdb155" class="r-1oszu61 r-1xc7w19 r-1phboty r-1yadl64 r-deolkf r-6koalj r-1mlwlqe r-eqz5dr r-1q142lx r-crgep1 r-ifefl9 r-bcqeeo r-t60dpp r-bnwqim r-417010"><div class="css-175oi2r"><div class="css-175oi2r"><li data-key="35a7d612c805488c9b99c611876fa5b3" class="view_manYY relative_kNGzo column_Pzect vertical400_IGNdU top0_4AOU1 bottom100_Y7CMU"><div data-block-content="35a7d612c805488c9b99c611876fa5b3" class="r-1oszu61 r-1xc7w19 r-1phboty r-1yadl64 r-deolkf r-crgep1 r-ifefl9 r-bcqeeo r-t60dpp r-417010 r-1ro0kt6 r-16y2uox r-1wbh5a2 r-6koalj r-18u37iz r-bnwqim"><div contenteditable="false" class="r-1xc7w19 r-1phboty r-1yadl64 r-deolkf r-1mlwlqe r-1q142lx r-crgep1 r-ifefl9 r-bcqeeo r-t60dpp r-bnwqim r-417010 r-1awozwy r-6koalj r-18u37iz r-1jkjb r-1kb76zh" style="height:24px"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 16" preserveAspectRatio="xMidYMid meet" class="r-37p410" style="vertical-align:middle;width:12px;height:12px"><path fill="currentColor" fill-rule="evenodd" d="M0 8c0-2.2 1.8-4 4-4s4 1.8 4 4-1.8 4-4 4-4-1.8-4-4z"></path></svg></div><div class="css-175oi2r r-13awgt0"><div data-key="608d449ae00642cb9c40d8532a8e125e" class="r-1oszu61 r-1xc7w19 r-1phboty r-1yadl64 r-deolkf r-6koalj r-1mlwlqe r-eqz5dr r-1q142lx r-crgep1 r-ifefl9 r-bcqeeo r-t60dpp r-bnwqim r-417010"><div dir="auto" class="css-1rynq56 r-gg6oyi r-ubezar r-1o2nx2a r-135wba7 r-37p410 r-fdjqy7 r-1xnzce8"><span data-key="fe4c73054690423d8420f0cf32d5cbc0"><strong data-slate-leaf="true" data-offset-key="fe4c73054690423d8420f0cf32d5cbc0:0" class="r-crgep1 r-b88u0q">Computational Intensity</strong><span data-offset-key="fe4c73054690423d8420f0cf32d5cbc0:1">: The brute-force approach of kNN, where every query vector is compared with all vectors in the dataset, is computationally expensive. </span></span></div></div></div></div></li></div></div><div class="css-175oi2r"><div class="css-175oi2r"><li data-key="2541557ed2f548ba93c79876edfeb5bf" class="view_manYY relative_kNGzo column_Pzect vertical400_IGNdU top100_QcUCv bottom100_Y7CMU"><div data-block-content="2541557ed2f548ba93c79876edfeb5bf" class="r-1oszu61 r-1xc7w19 r-1phboty r-1yadl64 r-deolkf r-crgep1 r-ifefl9 r-bcqeeo r-t60dpp r-417010 r-1ro0kt6 r-16y2uox r-1wbh5a2 r-6koalj r-18u37iz r-bnwqim"><div contenteditable="false" class="r-1xc7w19 r-1phboty r-1yadl64 r-deolkf r-1mlwlqe r-1q142lx r-crgep1 r-ifefl9 r-bcqeeo r-t60dpp r-bnwqim r-417010 r-1awozwy r-6koalj r-18u37iz r-1jkjb r-1kb76zh" style="height:24px"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 16" preserveAspectRatio="xMidYMid meet" class="r-37p410" style="vertical-align:middle;width:12px;height:12px"><path fill="currentColor" fill-rule="evenodd" d="M0 8c0-2.2 1.8-4 4-4s4 1.8 4 4-1.8 4-4 4-4-1.8-4-4z"></path></svg></div><div class="css-175oi2r r-13awgt0"><div data-key="3558678211d5435a9393e60c249e0994" class="r-1oszu61 r-1xc7w19 r-1phboty r-1yadl64 r-deolkf r-6koalj r-1mlwlqe r-eqz5dr r-1q142lx r-crgep1 r-ifefl9 r-bcqeeo r-t60dpp r-bnwqim r-417010"><div dir="auto" class="css-1rynq56 r-gg6oyi r-ubezar r-1o2nx2a r-135wba7 r-37p410 r-fdjqy7 r-1xnzce8"><span data-key="41837e669d7548b69ead81b8997c3ecd"><span data-offset-key="41837e669d7548b69ead81b8997c3ecd:0">For example, using Pathway, often developers with large datasets with high-dimensional data. On such datasets, this naive approach doesn&#x27;t work. As datasets grow, the time taken for these pairwise comparisons becomes a bottleneck. The standard kNN algorithm compares a query vector to every vector in the dataset, which is demanding in terms of computation, especially as the size of the dataset grows. This method&#x27;s time complexity is </span></span><span data-slate-void="true" data-key="e34755b3653a4375ad4a398a45d778e8"><span><span class="base_qcuoW"><div class="view_manYY container_4xc2q"><!--$--><span class="r-37p410"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>O</mi><mo stretchy="false">(</mo><mi>d</mi><msub><mi>n</mi><mi>t</mi></msub><msub><mi>n</mi><mi>q</mi></msub><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">O(d n_t n_q) </annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.036108em;vertical-align:-0.286108em;"></span><span class="mord mathnormal" style="margin-right:0.02778em;">O</span><span class="mopen">(</span><span class="mord mathnormal">d</span><span class="mord"><span class="mord mathnormal">n</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2805559999999999em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mord"><span class="mord mathnormal">n</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.15139200000000003em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.03588em;">q</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.286108em;"><span></span></span></span></span></span></span><span class="mclose">)</span></span></span></span></span><!--/$--></div></span></span></span><span data-key="56f0c1498d4d4eb294067ac76208e550"><span data-offset-key="56f0c1498d4d4eb294067ac76208e550:0"> where </span></span><span data-slate-void="true" data-key="acdff9e5369644848f5d872524c01737"><span><span class="base_qcuoW"><div class="view_manYY container_4xc2q"><!--$--><span class="r-37p410"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>d</mi></mrow><annotation encoding="application/x-tex">d</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.69444em;vertical-align:0em;"></span><span class="mord mathnormal">d</span></span></span></span></span><!--/$--></div></span></span></span><span data-key="4029ec789a7e446e922e86d6aba5bf9a"><span data-offset-key="4029ec789a7e446e922e86d6aba5bf9a:0"> represents the dimensions, and </span></span><span data-slate-void="true" data-key="63620087e5404a19b7cce62b5cbac0f9"><span><span class="base_qcuoW"><div class="view_manYY container_4xc2q"><!--$--><span class="r-37p410"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>n</mi><mi>t</mi></msub></mrow><annotation encoding="application/x-tex">n_t</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.58056em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal">n</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2805559999999999em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span></span><!--/$--></div></span></span></span><span data-key="3e3594de656246f698d33d6a8bf53455"><span data-offset-key="3e3594de656246f698d33d6a8bf53455:0"> and </span></span><span data-slate-void="true" data-key="78964b52f26d431bb5473f8be7fdce7d"><span><span class="base_qcuoW"><div class="view_manYY container_4xc2q"><!--$--><span class="r-37p410"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>n</mi><mi>q</mi></msub></mrow><annotation encoding="application/x-tex">n_q</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.716668em;vertical-align:-0.286108em;"></span><span class="mord"><span class="mord mathnormal">n</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.15139200000000003em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.03588em;">q</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.286108em;"><span></span></span></span></span></span></span></span></span></span></span><!--/$--></div></span></span></span><span data-key="7d51dd5bbc1b463e9b62eb60abe24e54"><span data-offset-key="7d51dd5bbc1b463e9b62eb60abe24e54:0"> are the numbers of training and query points, respectively. This can become very inefficient with large datasets.</span></span></div></div></div></div></li></div></div><div class="css-175oi2r"><div class="css-175oi2r"><li data-key="fff68ce747224583a799e3478aae2f78" class="view_manYY relative_kNGzo column_Pzect vertical400_IGNdU top100_QcUCv bottom0_fXfxl"><div data-block-content="fff68ce747224583a799e3478aae2f78" class="r-1oszu61 r-1xc7w19 r-1phboty r-1yadl64 r-deolkf r-crgep1 r-ifefl9 r-bcqeeo r-t60dpp r-417010 r-1ro0kt6 r-16y2uox r-1wbh5a2 r-6koalj r-18u37iz r-bnwqim"><div contenteditable="false" class="r-1xc7w19 r-1phboty r-1yadl64 r-deolkf r-1mlwlqe r-1q142lx r-crgep1 r-ifefl9 r-bcqeeo r-t60dpp r-bnwqim r-417010 r-1awozwy r-6koalj r-18u37iz r-1jkjb r-1kb76zh" style="height:24px"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 16" preserveAspectRatio="xMidYMid meet" class="r-37p410" style="vertical-align:middle;width:12px;height:12px"><path fill="currentColor" fill-rule="evenodd" d="M0 8c0-2.2 1.8-4 4-4s4 1.8 4 4-1.8 4-4 4-4-1.8-4-4z"></path></svg></div><div class="css-175oi2r r-13awgt0"><div data-key="50e841a445be4834bd735510b4da0eaf" class="r-1oszu61 r-1xc7w19 r-1phboty r-1yadl64 r-deolkf r-6koalj r-1mlwlqe r-eqz5dr r-1q142lx r-crgep1 r-ifefl9 r-bcqeeo r-t60dpp r-bnwqim r-417010"><div dir="auto" class="css-1rynq56 r-gg6oyi r-ubezar r-1o2nx2a r-135wba7 r-37p410 r-fdjqy7 r-1xnzce8"><span data-key="84ff7e42bff2402f82a6aa7b91caec9a"><span data-offset-key="84ff7e42bff2402f82a6aa7b91caec9a:0">Moreover, managing frequent updates in scenarios with regular data changes is both costly and complex. With new data points coming in, it brings in the requirement for recalculating distances for all queries, which consumes significant resources. In real-time or frequently updated data scenarios, this presents notable challenges. Moreover, modifying or deleting data points necessitates reevaluating all query responses, adding to the complexity.</span></span></div></div></div></div></li></div></div></ul></div></div></div></div></div></div></div></div></div><div><div class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2"><div class="view_manYY blockWrapper_8BIg7 vertical0_jPhI0 horizontalAuto_xck7M"><div data-rnwr1490-1777fci="true" data-rnwr700-1777fci="true" class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2 r-18u37iz r-1777fci"><div class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2"><div class="css-175oi2r"><div class="css-175oi2r"><div data-key="31e450c1f8ce43799d8b3a985e3b7e82" class="view_manYY relative_kNGzo column_Pzect vertical400_IGNdU top200_FwkHm bottom200_HuRwz"><div data-block-content="31e450c1f8ce43799d8b3a985e3b7e82" class="r-1oszu61 r-1xc7w19 r-1phboty r-1yadl64 r-deolkf r-6koalj r-eqz5dr r-crgep1 r-ifefl9 r-bcqeeo r-t60dpp r-bnwqim r-417010 r-1ro0kt6 r-16y2uox r-1wbh5a2"><div dir="auto" class="css-1rynq56 r-gg6oyi r-ubezar r-1o2nx2a r-135wba7 r-37p410 r-fdjqy7 r-1xnzce8"><span data-key="558c1a34031e4fdfba77b4952c770ee0"><span data-offset-key="558c1a34031e4fdfba77b4952c770ee0:0">To overcome this, Pathway uses a better approach.</span></span></div></div></div></div></div></div></div></div></div></div><div><div class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2"><div class="view_manYY blockWrapper_8BIg7 vertical0_jPhI0 horizontalAuto_xck7M"><div data-rnwr1490-1777fci="true" data-rnwr700-1777fci="true" class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2 r-18u37iz r-1777fci"><div class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2"><div class="css-175oi2r"><div class="css-175oi2r"><div data-key="de4b3084ffc34d50b7d2dd1961aff508" class="view_manYY relative_kNGzo column_Pzect vertical400_IGNdU top600_sT-91 bottom200_HuRwz"><div data-block-content="de4b3084ffc34d50b7d2dd1961aff508" class="r-1oszu61 r-1xc7w19 r-1phboty r-1yadl64 r-deolkf r-6koalj r-eqz5dr r-crgep1 r-ifefl9 r-bcqeeo r-t60dpp r-bnwqim r-417010 r-1ro0kt6 r-16y2uox r-1wbh5a2"><h3 class="r-1xc7w19 r-1phboty r-1yadl64 r-deolkf r-6koalj r-1mlwlqe r-1q142lx r-crgep1 r-ifefl9 r-bcqeeo r-t60dpp r-bnwqim r-417010 r-18u37iz r-obd0qt" id="leveraging-lsh-to-optimize-knn"><div dir="auto" data-rnwrdesktop-gg6oyi-adyw6z-135wba7-b88u0q="true" data-rnwr700-gg6oyi-ubezar-135wba7-1kfrs79="true" class="css-1rynq56 r-37p410 r-fdjqy7 r-1xnzce8" id="text-leveraging-lsh-to-optimize-knn"><span data-key="bf9642cc99f84b41a865b93bf0f7bb45"><span data-offset-key="bf9642cc99f84b41a865b93bf0f7bb45:0">Leveraging LSH to Optimize kNN</span></span><a href="using-knn-and-lsh-to-enhance-similarity-search-in-vector-embeddings-bonus-module.html#leveraging-lsh-to-optimize-knn" aria-label="Direct link to heading" data-rnwi-1pa6394-="true" data-rnwi--vazrsz-hover-focus="true" data-rnwi-5xr8s6-dse9kg-2fw26j-1at97bn-focus-visible="true" data-rnwi-handle="nearest" class="css-1qaijid r-1awozwy r-xoduu5 r-1jkjb r-orgf3d r-1loqt21"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 16 16" preserveAspectRatio="xMidYMid meet" role="presentation" style="vertical-align:middle;width:18px;height:18px"><path fill="currentColor" fill-rule="evenodd" d="M7.42 1.925a.6.6 0 0 1 .405.745L7.167 4.9h3.998l.76-2.57a.6.6 0 1 1 1.15.34l-.659 2.23H14a.6.6 0 0 1 0 1.2h-1.938l-1.123 3.8H13a.6.6 0 0 1 0 1.2h-2.415l-.76 2.57a.6.6 0 0 1-1.15-.34l.658-2.23H5.335l-.76 2.57a.6.6 0 1 1-1.15-.34l.658-2.23H2a.6.6 0 1 1 0-1.2h2.438l1.123-3.8H3a.6.6 0 0 1 0-1.2h2.915l.76-2.57a.6.6 0 0 1 .745-.405ZM6.812 6.1 5.689 9.9h3.999l1.123-3.8H6.812Z" clip-rule="evenodd"></path></svg></a></div></h3></div></div></div></div></div></div></div></div></div><div><div class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2"><div class="view_manYY blockWrapper_8BIg7 vertical0_jPhI0 horizontalAuto_xck7M"><div data-rnwr1490-1777fci="true" data-rnwr700-1777fci="true" class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2 r-18u37iz r-1777fci"><div class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2"><div class="css-175oi2r"><div class="css-175oi2r"><div data-key="92d208dbef5d4293a986879f0e132d41" class="view_manYY relative_kNGzo column_Pzect vertical400_IGNdU top400_n25lP bottom400_6eeBF"><div data-block-content="92d208dbef5d4293a986879f0e132d41" class="r-1oszu61 r-1xc7w19 r-1phboty r-1yadl64 r-deolkf r-6koalj r-eqz5dr r-crgep1 r-ifefl9 r-bcqeeo r-t60dpp r-bnwqim r-417010 r-1ro0kt6 r-16y2uox r-1wbh5a2"><ul data-key="92d208dbef5d4293a986879f0e132d41" class="r-1oszu61 r-1xc7w19 r-1phboty r-1yadl64 r-deolkf r-6koalj r-1mlwlqe r-eqz5dr r-1q142lx r-crgep1 r-ifefl9 r-bcqeeo r-t60dpp r-bnwqim r-417010"><div class="css-175oi2r"><div class="css-175oi2r"><li data-key="b245560f0caf48af82a8083e6146835b" class="view_manYY relative_kNGzo column_Pzect vertical400_IGNdU top0_4AOU1 bottom100_Y7CMU"><div data-block-content="b245560f0caf48af82a8083e6146835b" class="r-1oszu61 r-1xc7w19 r-1phboty r-1yadl64 r-deolkf r-crgep1 r-ifefl9 r-bcqeeo r-t60dpp r-417010 r-1ro0kt6 r-16y2uox r-1wbh5a2 r-6koalj r-18u37iz r-bnwqim"><div contenteditable="false" class="r-1xc7w19 r-1phboty r-1yadl64 r-deolkf r-1mlwlqe r-1q142lx r-crgep1 r-ifefl9 r-bcqeeo r-t60dpp r-bnwqim r-417010 r-1awozwy r-6koalj r-18u37iz r-1jkjb r-1kb76zh" style="height:24px"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 16" preserveAspectRatio="xMidYMid meet" class="r-37p410" style="vertical-align:middle;width:12px;height:12px"><path fill="currentColor" fill-rule="evenodd" d="M0 8c0-2.2 1.8-4 4-4s4 1.8 4 4-1.8 4-4 4-4-1.8-4-4z"></path></svg></div><div class="css-175oi2r r-13awgt0"><div data-key="0f085356f52040e9847b3b92fe5c1c4d" class="r-1oszu61 r-1xc7w19 r-1phboty r-1yadl64 r-deolkf r-6koalj r-1mlwlqe r-eqz5dr r-1q142lx r-crgep1 r-ifefl9 r-bcqeeo r-t60dpp r-bnwqim r-417010"><div dir="auto" class="css-1rynq56 r-gg6oyi r-ubezar r-1o2nx2a r-135wba7 r-37p410 r-fdjqy7 r-1xnzce8"><span data-key="ad5a4f716ab241c19b85414f0ef5c90d"><strong data-slate-leaf="true" data-offset-key="ad5a4f716ab241c19b85414f0ef5c90d:0" class="r-crgep1 r-b88u0q">What is LSH?</strong><span data-offset-key="ad5a4f716ab241c19b85414f0ef5c90d:1">: LSH (Local Sensitive Hashing) is a hashing technique wherein similar data points are probabilistically mapped to the same bucket. Understandably, unlike hash functions used for security, which scatter similar items widely to prevent predictability, LSH clusters related items together to streamline similarity searches.</span></span></div></div></div></div></li></div></div><div class="css-175oi2r"><div class="css-175oi2r"><li data-key="86b9d2ef9a5a43f0bdad10011b975cdd" class="view_manYY relative_kNGzo column_Pzect vertical400_IGNdU top100_QcUCv bottom0_fXfxl"><div data-block-content="86b9d2ef9a5a43f0bdad10011b975cdd" class="r-1oszu61 r-1xc7w19 r-1phboty r-1yadl64 r-deolkf r-crgep1 r-ifefl9 r-bcqeeo r-t60dpp r-417010 r-1ro0kt6 r-16y2uox r-1wbh5a2 r-6koalj r-18u37iz r-bnwqim"><div contenteditable="false" class="r-1xc7w19 r-1phboty r-1yadl64 r-deolkf r-1mlwlqe r-1q142lx r-crgep1 r-ifefl9 r-bcqeeo r-t60dpp r-bnwqim r-417010 r-1awozwy r-6koalj r-18u37iz r-1jkjb r-1kb76zh" style="height:24px"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 16" preserveAspectRatio="xMidYMid meet" class="r-37p410" style="vertical-align:middle;width:12px;height:12px"><path fill="currentColor" fill-rule="evenodd" d="M0 8c0-2.2 1.8-4 4-4s4 1.8 4 4-1.8 4-4 4-4-1.8-4-4z"></path></svg></div><div class="css-175oi2r r-13awgt0"><div data-key="01c868f3f80d4340ab7582776a1c4ba5" class="r-1oszu61 r-1xc7w19 r-1phboty r-1yadl64 r-deolkf r-6koalj r-1mlwlqe r-eqz5dr r-1q142lx r-crgep1 r-ifefl9 r-bcqeeo r-t60dpp r-bnwqim r-417010"><div dir="auto" class="css-1rynq56 r-gg6oyi r-ubezar r-1o2nx2a r-135wba7 r-37p410 r-fdjqy7 r-1xnzce8"><span data-key="ee8d5da293ad43d59ecf905c44d5a160"><strong data-slate-leaf="true" data-offset-key="ee8d5da293ad43d59ecf905c44d5a160:0" class="r-crgep1 r-b88u0q">How LSH Complements kNN</strong><span data-offset-key="ee8d5da293ad43d59ecf905c44d5a160:1">: LSH enhances kNN&#x27;s effectiveness by grouping vectors based on similarity into the same or adjacent buckets, utilizing hashing functions defined as </span></span><span data-slate-void="true" data-key="6a933480a96b41a1b2ad1dc612ede1cf"><span><span class="base_qcuoW"><div class="view_manYY container_4xc2q"><!--$--><span class="r-37p410"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>h</mi><mrow><mi>v</mi><mo separator="true">,</mo><mi>b</mi><mo separator="true">,</mo><mi>w</mi></mrow></msub><mo stretchy="false">(</mo><mi>p</mi><mo stretchy="false">)</mo><mo>:</mo><msub><mi>h</mi><mrow><mi>v</mi><mo separator="true">,</mo><mi>b</mi><mo separator="true">,</mo><mi>w</mi></mrow></msub><mo stretchy="false">(</mo><mi>p</mi><mo stretchy="false">)</mo><mo>=</mo><mrow><mo fence="true">⌊</mo><mfrac><mrow><mi mathvariant="bold">p</mi><mo>⋅</mo><mi mathvariant="bold">v</mi><mo>+</mo><mi>b</mi></mrow><mi>A</mi></mfrac><mo fence="true">⌋</mo></mrow></mrow><annotation encoding="application/x-tex">h_{v,b,w}(p) : h_{v,b,w}(p) = \left\lfloor \frac{\mathbf{p} \cdot \mathbf{v} + b}{A} \right\rfloor </annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.036108em;vertical-align:-0.286108em;"></span><span class="mord"><span class="mord mathnormal">h</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361079999999999em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.03588em;">v</span><span class="mpunct mtight">,</span><span class="mord mathnormal mtight">b</span><span class="mpunct mtight">,</span><span class="mord mathnormal mtight" style="margin-right:0.02691em;">w</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.286108em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal">p</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">:</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:1.036108em;vertical-align:-0.286108em;"></span><span class="mord"><span class="mord mathnormal">h</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361079999999999em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.03588em;">v</span><span class="mpunct mtight">,</span><span class="mord mathnormal mtight">b</span><span class="mpunct mtight">,</span><span class="mord mathnormal mtight" style="margin-right:0.02691em;">w</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.286108em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal">p</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:1.80002em;vertical-align:-0.65002em;"></span><span class="minner"><span class="mopen delimcenter" style="top:0em;"><span class="delimsizing size2">⌊</span></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.9322159999999999em;"><span style="top:-2.6550000000000002em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">A</span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.446108em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathbf mtight">p</span><span class="mbin mtight">⋅</span><span class="mord mathbf mtight" style="margin-right:0.01597em;">v</span><span class="mbin mtight">+</span><span class="mord mathnormal mtight">b</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.345em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mclose delimcenter" style="top:0em;"><span class="delimsizing size2">⌋</span></span></span></span></span></span></span><!--/$--></div></span></span></span><span data-key="f8d7ccd81c38466591b575b11dfa99d4"><span data-offset-key="f8d7ccd81c38466591b575b11dfa99d4:0"> where </span></span><span data-slate-void="true" data-key="3533f334bffc463d9432c955882626ed"><span><span class="base_qcuoW"><div class="view_manYY container_4xc2q"><!--$--><span class="r-37p410"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>v</mi></mrow><annotation encoding="application/x-tex">v</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.43056em;vertical-align:0em;"></span><span class="mord mathnormal" style="margin-right:0.03588em;">v</span></span></span></span></span><!--/$--></div></span></span></span><span data-key="c2c8613aad1f4b588189613f7498b6c0"><span data-offset-key="c2c8613aad1f4b588189613f7498b6c0:0"> is a random chosen vector and b is a random bias </span></span><span data-slate-void="true" data-key="1e79e548a6c64046a39c97467b9326a0"><span><span class="base_qcuoW"><div class="view_manYY container_4xc2q"><!--$--><span class="r-37p410"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>b</mi></mrow><annotation encoding="application/x-tex">b</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.69444em;vertical-align:0em;"></span><span class="mord mathnormal">b</span></span></span></span></span><!--/$--></div></span></span></span><span data-key="6a5906cf35ed48379e48ef4f5ec8f323"><span data-offset-key="6a5906cf35ed48379e48ef4f5ec8f323:0"> is used to offset the vector, and </span></span><span data-slate-void="true" data-key="1b40a02567114749abe51826f5259996"><span><span class="base_qcuoW"><div class="view_manYY container_4xc2q"><!--$--><span class="r-37p410"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>A</mi></mrow><annotation encoding="application/x-tex">A</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.68333em;vertical-align:0em;"></span><span class="mord mathnormal">A</span></span></span></span></span><!--/$--></div></span></span></span><span data-key="3cb7a590237144c49397270d869dfb61"><span data-offset-key="3cb7a590237144c49397270d869dfb61:0"> is the bucket width. This method efficiently narrows down the pool of vectors kNN needs to analyze, boosting the overall speed and performance of the search.</span></span></div></div></div></div></li></div></div></ul></div></div></div></div></div></div></div></div></div><div><div class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2"><div class="view_manYY blockWrapper_8BIg7 vertical0_jPhI0 horizontalAuto_xck7M"><div data-rnwr1490-1777fci="true" data-rnwr700-1777fci="true" class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2 r-18u37iz r-1777fci"><div class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2"><div class="css-175oi2r"><div class="css-175oi2r"><div data-key="c90cbf37eb1b4a48add339f5d80fb545" class="view_manYY relative_kNGzo column_Pzect vertical400_IGNdU top200_FwkHm bottom200_HuRwz"><div data-block-content="c90cbf37eb1b4a48add339f5d80fb545" class="r-1oszu61 r-1xc7w19 r-1phboty r-1yadl64 r-deolkf r-6koalj r-eqz5dr r-crgep1 r-ifefl9 r-bcqeeo r-t60dpp r-bnwqim r-417010 r-1ro0kt6 r-16y2uox r-1wbh5a2"><div dir="auto" class="css-1rynq56 r-gg6oyi r-ubezar r-1o2nx2a r-135wba7 r-37p410 r-fdjqy7 r-1xnzce8"><span data-key="20486007225f40abb260ecdab55b5e02"><span data-offset-key="20486007225f40abb260ecdab55b5e02:0">If you are keen on diving deeper into the intricacies of how kNN and LSH work together, especially in the context of large-scale datasets, we recommend checking out the below resource by Olivier Ruas on KNN+LSH. It provides a more detailed exploration, complete with visual aids and practical examples.</span></span></div></div></div></div></div></div></div></div></div></div><div><div data-slate-void="true" data-key="e597809a77bf4aecb7364b79616c474b"><div><div class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2"><div class="view_manYY blockWrapper_8BIg7 vertical0_jPhI0 horizontalAuto_xck7M"><div data-rnwr1490-1777fci="true" data-rnwr700-1777fci="true" class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2 r-18u37iz r-1777fci"><div class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2"><div class="css-175oi2r"><div class="css-175oi2r"><div data-key="e597809a77bf4aecb7364b79616c474b" class="view_manYY relative_kNGzo column_Pzect vertical400_IGNdU top400_n25lP bottom400_6eeBF"><div data-block-content="e597809a77bf4aecb7364b79616c474b" class="r-1oszu61 r-1xc7w19 r-1phboty r-1yadl64 r-deolkf r-6koalj r-eqz5dr r-crgep1 r-ifefl9 r-bcqeeo r-t60dpp r-bnwqim r-417010 r-1ro0kt6 r-16y2uox r-1wbh5a2"><!--$--><a href="https://pathway.com/developers/showcases/lsh/lsh_chapter2" data-rnwi-u529wo-aq1qub-c1zw6o-1khlhp8-1cut0bx-na6qhi--hover="true" data-rnwi--9zxvpa--focus="true" data-rnwi-5xr8s6-dse9kg-2fw26j-1at97bn-focus-visible="true" data-rnwi-handle="BaseCard" class="css-175oi2r r-lrvibr r-1loqt21 r-1otgn73 r-190qawg r-z2wwpe r-rs99b7 r-1udh08x r-1clhhh9 r-18u37iz r-1awozwy r-nsbfu8" style="background-color:rgba(255,255,255,1.00);transition-duration:0.15s"><div class="css-175oi2r r-88pszg"><img alt="" src="https://pathway.com/favicon.ico" width="100%" height="auto" decoding="async" data-rnwibasecard--vazrsz-hover="true" data-rnwi-handle="nearest" class="r-1pa6394" style="width:32px;height:32px;border-top-left-radius:4px;border-top-right-radius:4px;border-bottom-right-radius:4px;border-bottom-left-radius:4px"/></div><div class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2"><div class="css-175oi2r r-18u37iz r-1awozwy"><div dir="auto" data-rnwibasecard--vazrsz-hover-focus="true" data-rnwi-handle="nearest" class="css-1rynq56 r-dnmrzs r-1udh08x r-1udbk01 r-3s2u2q r-1iln25a r-gg6oyi r-ubezar r-135wba7 r-majxgm r-37p410">Realtime Classification with Nearest Neighbors (2/2) | Pathway</div></div></div></a><!--/$--></div></div></div></div></div></div></div></div></div></div></div><div><div class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2"><div class="view_manYY blockWrapper_8BIg7 vertical0_jPhI0 horizontalAuto_xck7M"><div data-rnwr1490-1777fci="true" data-rnwr700-1777fci="true" class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2 r-18u37iz r-1777fci"><div class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2"><div class="css-175oi2r"><div class="css-175oi2r"><div data-key="256822b8032c42568332684c6c579add" class="view_manYY relative_kNGzo column_Pzect vertical400_IGNdU top600_sT-91 bottom200_HuRwz"><div data-block-content="256822b8032c42568332684c6c579add" class="r-1oszu61 r-1xc7w19 r-1phboty r-1yadl64 r-deolkf r-6koalj r-eqz5dr r-crgep1 r-ifefl9 r-bcqeeo r-t60dpp r-bnwqim r-417010 r-1ro0kt6 r-16y2uox r-1wbh5a2"><h3 class="r-1xc7w19 r-1phboty r-1yadl64 r-deolkf r-6koalj r-1mlwlqe r-1q142lx r-crgep1 r-ifefl9 r-bcqeeo r-t60dpp r-bnwqim r-417010 r-18u37iz r-obd0qt" id="incremental-indexing-in-llm-app"><div dir="auto" data-rnwrdesktop-gg6oyi-adyw6z-135wba7-b88u0q="true" data-rnwr700-gg6oyi-ubezar-135wba7-1kfrs79="true" class="css-1rynq56 r-37p410 r-fdjqy7 r-1xnzce8" id="text-incremental-indexing-in-llm-app"><span data-key="bc4546a42b65431280556817d23a1ae3"><span data-offset-key="bc4546a42b65431280556817d23a1ae3:0">Incremental Indexing in </span></span><!--$--><a href="https://github.com/pathwaycom/llm-app" data-rnwi-5xr8s6-dse9kg-2fw26j-1at97bn-focus-visible="true" data-rnwi-handle="link" class="css-175oi2r r-1i6wzkk r-lrvibr r-1loqt21 r-1otgn73 r-1471scf" style="transition-duration:0.15s"><span data-key="362b7fb708a145b1b6d7aebb3ec71854" data-rnwilink--vazrsz-="true" data-rnwilink--1s2hdh9-1ddef8g-hover="true" data-rnwi-handle="nearest" class="r-crgep1"><span data-key="f592f47cd40040e992c892486f64aba3"><span data-offset-key="f592f47cd40040e992c892486f64aba3:0">LLM App</span></span></span></a><!--/$--><span data-key="f3297f73d7f142189c7d14d6341643f1"><span data-offset-key="f3297f73d7f142189c7d14d6341643f1:0"><span data-slate-zero-width="z">​</span></span></span><a href="using-knn-and-lsh-to-enhance-similarity-search-in-vector-embeddings-bonus-module.html#incremental-indexing-in-llm-app" aria-label="Direct link to heading" data-rnwi-1pa6394-="true" data-rnwi--vazrsz-hover-focus="true" data-rnwi-5xr8s6-dse9kg-2fw26j-1at97bn-focus-visible="true" data-rnwi-handle="nearest" class="css-1qaijid r-1awozwy r-xoduu5 r-1jkjb r-orgf3d r-1loqt21"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 16 16" preserveAspectRatio="xMidYMid meet" role="presentation" style="vertical-align:middle;width:18px;height:18px"><path fill="currentColor" fill-rule="evenodd" d="M7.42 1.925a.6.6 0 0 1 .405.745L7.167 4.9h3.998l.76-2.57a.6.6 0 1 1 1.15.34l-.659 2.23H14a.6.6 0 0 1 0 1.2h-1.938l-1.123 3.8H13a.6.6 0 0 1 0 1.2h-2.415l-.76 2.57a.6.6 0 0 1-1.15-.34l.658-2.23H5.335l-.76 2.57a.6.6 0 1 1-1.15-.34l.658-2.23H2a.6.6 0 1 1 0-1.2h2.438l1.123-3.8H3a.6.6 0 0 1 0-1.2h2.915l.76-2.57a.6.6 0 0 1 .745-.405ZM6.812 6.1 5.689 9.9h3.999l1.123-3.8H6.812Z" clip-rule="evenodd"></path></svg></a></div></h3></div></div></div></div></div></div></div></div></div><div><div class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2"><div class="view_manYY blockWrapper_8BIg7 vertical0_jPhI0 horizontalAuto_xck7M"><div data-rnwr1490-1777fci="true" data-rnwr700-1777fci="true" class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2 r-18u37iz r-1777fci"><div class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2"><div class="css-175oi2r"><div class="css-175oi2r"><div data-key="7d06fdeffde04dcea6c61bb65e7154a6" class="view_manYY relative_kNGzo column_Pzect vertical400_IGNdU top200_FwkHm bottom200_HuRwz"><div data-block-content="7d06fdeffde04dcea6c61bb65e7154a6" class="r-1oszu61 r-1xc7w19 r-1phboty r-1yadl64 r-deolkf r-6koalj r-eqz5dr r-crgep1 r-ifefl9 r-bcqeeo r-t60dpp r-bnwqim r-417010 r-1ro0kt6 r-16y2uox r-1wbh5a2"><div dir="auto" class="css-1rynq56 r-gg6oyi r-ubezar r-1o2nx2a r-135wba7 r-37p410 r-fdjqy7 r-1xnzce8"><span data-key="b68ce2f62eec44a9bd657620e359dbfb"><span data-offset-key="b68ce2f62eec44a9bd657620e359dbfb:0">Building on similarity search, vector embeddings, and RAG, the next piece offers insights into managing vector indexes in dynamic settings, like an e-commerce platform with constantly changing product data. </span></span></div></div></div></div></div></div></div></div></div></div><div><div class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2"><div class="view_manYY blockWrapper_8BIg7 vertical0_jPhI0 horizontalAuto_xck7M"><div data-rnwr1490-1777fci="true" data-rnwr700-1777fci="true" class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2 r-18u37iz r-1777fci"><div class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2"><div class="css-175oi2r"><div class="css-175oi2r"><div data-key="3b5d815658f942cfbce8e69571aef7ba" class="view_manYY relative_kNGzo column_Pzect vertical400_IGNdU top200_FwkHm bottom200_HuRwz"><div data-block-content="3b5d815658f942cfbce8e69571aef7ba" class="r-1oszu61 r-1xc7w19 r-1phboty r-1yadl64 r-deolkf r-6koalj r-eqz5dr r-crgep1 r-ifefl9 r-bcqeeo r-t60dpp r-bnwqim r-417010 r-1ro0kt6 r-16y2uox r-1wbh5a2"><div dir="auto" class="css-1rynq56 r-gg6oyi r-ubezar r-1o2nx2a r-135wba7 r-37p410 r-fdjqy7 r-1xnzce8"><span data-key="b9a9c650f892487b9fcb6ed8d36af507"><span data-offset-key="b9a9c650f892487b9fcb6ed8d36af507:0">It delves into LSM (Log-Structured Merge-tree) indexes and how Pathway&#x27;s indexing approach for its RAG Framework – </span></span><!--$--><a href="https://github.com/pathwaycom/llm-app" data-rnwi-5xr8s6-dse9kg-2fw26j-1at97bn-focus-visible="true" data-rnwi-handle="link" class="css-175oi2r r-1i6wzkk r-lrvibr r-1loqt21 r-1otgn73 r-1471scf" style="transition-duration:0.15s"><span data-key="f9fdf684af38488884a594271ac2e1c0" data-rnwilink--vazrsz-="true" data-rnwilink--1s2hdh9-1ddef8g-hover="true" data-rnwi-handle="nearest" class="r-crgep1"><span data-key="dfb09fa0b1224bf89029d09eb3463ccd"><span data-offset-key="dfb09fa0b1224bf89029d09eb3463ccd:0">LLM App</span></span></span></a><!--/$--><span data-key="5ed5243ec28347f2a05b463f28001b61"><span data-offset-key="5ed5243ec28347f2a05b463f28001b61:0"> adapts to streaming (live) data, balancing computational efficiency with user needs. The article includes practical scenarios, such as table joins and real-time alerts in Pathway, enhancing your understanding of indexing in fluid data environments.</span></span></div></div></div></div></div></div></div></div></div></div><div><div data-slate-void="true" data-key="bb7f59c7766b4e4f8bcca4f1194aae91"><div><div class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2"><div class="view_manYY blockWrapper_8BIg7 vertical0_jPhI0 horizontalAuto_xck7M"><div data-rnwr1490-1777fci="true" data-rnwr700-1777fci="true" class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2 r-18u37iz r-1777fci"><div class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2"><div class="css-175oi2r"><div class="css-175oi2r"><div data-key="bb7f59c7766b4e4f8bcca4f1194aae91" class="view_manYY relative_kNGzo column_Pzect vertical400_IGNdU top400_n25lP bottom400_6eeBF"><div data-block-content="bb7f59c7766b4e4f8bcca4f1194aae91" class="r-1oszu61 r-1xc7w19 r-1phboty r-1yadl64 r-deolkf r-6koalj r-eqz5dr r-crgep1 r-ifefl9 r-bcqeeo r-t60dpp r-bnwqim r-417010 r-1ro0kt6 r-16y2uox r-1wbh5a2"><!--$--><a href="https://pathway.com/developers/tutorials/indexes/" data-rnwi-u529wo-aq1qub-c1zw6o-1khlhp8-1cut0bx-na6qhi--hover="true" data-rnwi--9zxvpa--focus="true" data-rnwi-5xr8s6-dse9kg-2fw26j-1at97bn-focus-visible="true" data-rnwi-handle="BaseCard" class="css-175oi2r r-lrvibr r-1loqt21 r-1otgn73 r-190qawg r-z2wwpe r-rs99b7 r-1udh08x r-1clhhh9 r-18u37iz r-1awozwy r-nsbfu8" style="background-color:rgba(255,255,255,1.00);transition-duration:0.15s"><div class="css-175oi2r r-88pszg"><img alt="" src="https://pathway.com/favicon.ico" width="100%" height="auto" decoding="async" data-rnwibasecard--vazrsz-hover="true" data-rnwi-handle="nearest" class="r-1pa6394" style="width:32px;height:32px;border-top-left-radius:4px;border-top-right-radius:4px;border-bottom-right-radius:4px;border-bottom-left-radius:4px"/></div><div class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2"><div class="css-175oi2r r-18u37iz r-1awozwy"><div dir="auto" data-rnwibasecard--vazrsz-hover-focus="true" data-rnwi-handle="nearest" class="css-1rynq56 r-dnmrzs r-1udh08x r-1udbk01 r-3s2u2q r-1iln25a r-gg6oyi r-ubezar r-135wba7 r-majxgm r-37p410">Indexes in Pathway</div></div></div></a><!--/$--></div></div></div></div></div></div></div></div></div></div></div><div><div class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2"><div class="view_manYY blockWrapper_8BIg7 vertical0_jPhI0 horizontalAuto_xck7M"><div data-rnwr1490-1777fci="true" data-rnwr700-1777fci="true" class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2 r-18u37iz r-1777fci"><div class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2"><div class="css-175oi2r"><div class="css-175oi2r"><div data-key="04172900ea5d4d8196295046b3c2f0f9" class="view_manYY relative_kNGzo column_Pzect vertical400_IGNdU top200_FwkHm bottom200_HuRwz"><div data-block-content="04172900ea5d4d8196295046b3c2f0f9" class="r-1oszu61 r-1xc7w19 r-1phboty r-1yadl64 r-deolkf r-6koalj r-eqz5dr r-crgep1 r-ifefl9 r-bcqeeo r-t60dpp r-bnwqim r-417010 r-1ro0kt6 r-16y2uox r-1wbh5a2"><div dir="auto" class="css-1rynq56 r-gg6oyi r-ubezar r-1o2nx2a r-135wba7 r-37p410 r-fdjqy7 r-1xnzce8"><span data-key="c6e6184f89b743eda6202a72a5e8d53b"><span data-offset-key="c6e6184f89b743eda6202a72a5e8d53b:0"><span data-slate-zero-width="n">​</span></span></span></div></div></div></div></div></div></div></div></div></div></div></div><div class="view_manYY blockWrapper_8BIg7 vertical0_jPhI0 horizontalAuto_xck7M top600_q8Ng4"><div data-rnwr1280-1777fci="true" class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2 r-18u37iz"><div class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2"><div class="css-175oi2r"><div data-rnwrdesktop-18u37iz="true" data-rnwr970-eqz5dr="true" class="css-175oi2r r-1peese0"><a href="similarity-search-in-vectors-bonus-module.html" data-rnwrdesktop-1kb76zh="true" data-rnwr970-61z16t-5oul0u="true" data-rnwi-u529wo-aq1qub-c1zw6o-1khlhp8-1cut0bx-na6qhi--hover="true" data-rnwi--9zxvpa--focus="true" data-rnwi-5xr8s6-dse9kg-2fw26j-1at97bn-focus-visible="true" data-rnwi-handle="BaseCard" class="css-175oi2r r-lrvibr r-1loqt21 r-1otgn73 r-190qawg r-z2wwpe r-rs99b7 r-1udh08x r-1clhhh9 r-18u37iz r-1awozwy r-nsbfu8 r-1ro0kt6 r-16y2uox r-1wbh5a2" style="background-color:rgba(255,255,255,1.00);transition-duration:0.15s"><div class="css-175oi2r r-88pszg"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 16 16" preserveAspectRatio="xMidYMid meet" data-rnwibasecard--vazrsz-hover="true" data-rnwi-handle="nearest" class="r-1pa6394" style="vertical-align:middle;width:24px;height:24px"><path fill="currentColor" fill-rule="evenodd" d="M6.924 3.576a.6.6 0 0 1 0 .848L3.95 7.4H13.5a.6.6 0 1 1 0 1.2H3.949l2.975 2.976a.6.6 0 0 1-.848.848l-4-4a.6.6 0 0 1 0-.848l4-4a.6.6 0 0 1 .848 0Z" clip-rule="evenodd"></path></svg></div><div class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2 r-obd0qt"><div class="css-175oi2r"><div dir="auto" class="css-1rynq56 r-gg6oyi r-1enofrn r-16dba41 r-14yzgew r-1pa6394">Previous</div></div><div dir="auto" data-rnwibasecard--vazrsz-hover-focus="true" data-rnwi-handle="nearest" class="css-1rynq56 r-dnmrzs r-1udh08x r-1udbk01 r-3s2u2q r-1iln25a r-gg6oyi r-ubezar r-135wba7 r-majxgm r-37p410">Similarity Search in Vectors (Bonus Module)</div></div></a><a href="track-your-progress.html" data-rnwrdesktop-1jkjb="true" data-rnwr970-11wrixw-knv0ih="true" data-rnwi-u529wo-aq1qub-c1zw6o-1khlhp8-1cut0bx-na6qhi--hover="true" data-rnwi--9zxvpa--focus="true" data-rnwi-5xr8s6-dse9kg-2fw26j-1at97bn-focus-visible="true" data-rnwi-handle="BaseCard" class="css-175oi2r r-lrvibr r-1loqt21 r-1otgn73 r-190qawg r-z2wwpe r-rs99b7 r-1udh08x r-1clhhh9 r-18u37iz r-1awozwy r-nsbfu8 r-1ro0kt6 r-16y2uox r-1wbh5a2" style="background-color:rgba(255,255,255,1.00);transition-duration:0.15s"><div class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2"><div class="css-175oi2r"><div dir="auto" class="css-1rynq56 r-gg6oyi r-1enofrn r-16dba41 r-14yzgew r-1pa6394">Next</div></div><div dir="auto" data-rnwibasecard--vazrsz-hover-focus="true" data-rnwi-handle="nearest" class="css-1rynq56 r-dnmrzs r-1udh08x r-1udbk01 r-3s2u2q r-1iln25a r-gg6oyi r-ubezar r-135wba7 r-majxgm r-37p410">Track your Progress</div></div><div class="css-175oi2r r-1ow6zhx"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 16 16" preserveAspectRatio="xMidYMid meet" data-rnwibasecard--vazrsz-hover="true" data-rnwi-handle="nearest" class="r-1pa6394" style="vertical-align:middle;width:24px;height:24px"><path fill="currentColor" fill-rule="evenodd" d="M9.076 3.576a.6.6 0 0 1 .848 0l4 4a.6.6 0 0 1 0 .848l-4 4a.6.6 0 0 1-.848-.848L12.052 8.6H2.5a.6.6 0 0 1 0-1.2h9.552L9.076 4.424a.6.6 0 0 1 0-.848Z" clip-rule="evenodd"></path></svg></div></a></div><div class="css-175oi2r r-1ygmrgt r-1yv4afn r-5kkj8d"><div data-rnwrdesktop-18u37iz="true" data-rnwr1024-eqz5dr="true" class="css-175oi2r r-1awozwy r-1wtj0ep"><div data-rnwr1024-1ifxtd0="true" class="css-175oi2r r-1ro0kt6 r-16y2uox r-1wbh5a2"><div dir="auto" class="css-1rynq56 r-1pa6394 r-gg6oyi r-1b43r93 r-16dba41 r-hbpseb">Last modified <span aria-label="2023-12-17 18:33 UTC" class="css-1qaijid">3d ago</span></div></div></div></div></div></div></div></div></div></main></div><aside aria-label="Page outline" data-rnwrdesktop-166pt5r="true" data-rnwr1280-hidden="true" data-rnwr700-hidden="true" class="r-1oszu61 r-1xc7w19 r-1phboty r-1yadl64 r-deolkf r-6koalj r-1mlwlqe r-eqz5dr r-1q142lx r-crgep1 r-ifefl9 r-bcqeeo r-t60dpp r-417010 r-k200y r-1rnoaur r-gtdqiz r-pw2am6 r-146iojx" style="top:104px;max-height:calc(100vh - 104px)" data-testid="page.outline"><div class="css-175oi2r r-146iojx"><div class="css-175oi2r r-18u37iz r-1awozwy r-1guathk r-5oul0u"><div dir="auto" class="css-1rynq56 r-gg6oyi r-1enofrn r-19r33im r-14yzgew r-tsynxw r-1pa6394 r-b88u0q">On this page</div></div><div data-rnwi-5xr8s6-dse9kg-2fw26j-1at97bn-focus-visible="true" data-rnwi-handle="nearest" tabindex="0" class="css-175oi2r r-1i6wzkk r-lrvibr r-1loqt21 r-1otgn73 r-18u37iz r-1guathk r-855088 r-ms8t9i r-15zivkp r-lqms97 r-14gqq1x r-dnmrzs r-7xmw5f" style="transition-duration:0.15s"><div dir="auto" data-rnwinearest--vazrsz-hover="true" data-rnwi-handle="nearest" class="css-1rynq56 r-dnmrzs r-1udh08x r-1udbk01 r-3s2u2q r-1iln25a r-gg6oyi r-1b43r93 r-16dba41 r-hbpseb r-1bnj018 r-1jkjb">kNN (k-Nearest-Neighbors) in the Context of Vector Embeddings</div></div><div data-rnwi-5xr8s6-dse9kg-2fw26j-1at97bn-focus-visible="true" data-rnwi-handle="nearest" tabindex="0" class="css-175oi2r r-1i6wzkk r-lrvibr r-1loqt21 r-1otgn73 r-18u37iz r-1guathk r-855088 r-ms8t9i r-15zivkp r-lqms97 r-14gqq1x r-dnmrzs r-7xmw5f" style="transition-duration:0.15s"><div dir="auto" data-rnwinearest--vazrsz-hover="true" data-rnwi-handle="nearest" class="css-1rynq56 r-dnmrzs r-1udh08x r-1udbk01 r-3s2u2q r-1iln25a r-gg6oyi r-1b43r93 r-16dba41 r-hbpseb r-1bnj018 r-1jkjb">Challenges with kNN</div></div><div data-rnwi-5xr8s6-dse9kg-2fw26j-1at97bn-focus-visible="true" data-rnwi-handle="nearest" tabindex="0" class="css-175oi2r r-1i6wzkk r-lrvibr r-1loqt21 r-1otgn73 r-18u37iz r-1guathk r-855088 r-ms8t9i r-15zivkp r-lqms97 r-14gqq1x r-dnmrzs r-7xmw5f" style="transition-duration:0.15s"><div dir="auto" data-rnwinearest--vazrsz-hover="true" data-rnwi-handle="nearest" class="css-1rynq56 r-dnmrzs r-1udh08x r-1udbk01 r-3s2u2q r-1iln25a r-gg6oyi r-1b43r93 r-16dba41 r-hbpseb r-1bnj018 r-1jkjb">Leveraging LSH to Optimize kNN</div></div><div data-rnwi-5xr8s6-dse9kg-2fw26j-1at97bn-focus-visible="true" data-rnwi-handle="nearest" tabindex="0" class="css-175oi2r r-1i6wzkk r-lrvibr r-1loqt21 r-1otgn73 r-18u37iz r-1guathk r-855088 r-ms8t9i r-15zivkp r-lqms97 r-14gqq1x r-dnmrzs r-7xmw5f" style="transition-duration:0.15s"><div dir="auto" data-rnwinearest--vazrsz-hover="true" data-rnwi-handle="nearest" class="css-1rynq56 r-dnmrzs r-1udh08x r-1udbk01 r-3s2u2q r-1iln25a r-gg6oyi r-1b43r93 r-16dba41 r-hbpseb r-1bnj018 r-1jkjb">Incremental Indexing in LLM App</div></div></div></aside></div><!--/$--></div></div></div><!--/$--></div></div></div>
+        <script>
+            // Rendered with GitBook 10.9.520-ec373cc718b6051ac3e1c731e2faa3d4a4a65363-7264377297
+            // Space 6FUyhX0UiywvK1rz0m1N
+            
+            window.__GITBOOK_WAS_SSR = true;
+            window.__GITBOOK_INITIAL_PROPS__ = "㞂‖འ츂аⶁ䱀⸐ₖ֠ㆄ䤠⮜\ud8c0➮\ud850ᆮင苤נ賘䜀琭耚\udfafက桁큅Ԁծ怰耈쀁需ጄ钢摩⸺≣ǚ嘨੠輙ᩌ恠솵ᴀ㴀䈍趠나뼡ሽ鐍舾➨㑪ᰌᐆ　⾌븓਷਎耠谦䠂ꄜຆ稺耛';㵀㌀ጣ䀇⚌ꈜ㐊ᕍ䘧䀋⚔䠞䅌ᅀႥ᪀ 㮌ȸ쀌耈耚褽䀒萀ᮣ䀘鋊⇀ᦘ܀⊎똋ᒇ綳ᬧᮋ쎁ꠀ敝醔䀂뉘氀4蝜ခ倂㢡턈ញ࿤쇐ꂘI檊\u0001퀀綞ᰎἓ̦␼ဤ⌌ᅂ䩃愜삵㘎؁⑑ᐪ팏嚸ŕ⡠\u0006Ꚏ嶄ꁬ⻈Ήꉃꠀ狶慨ꦁ䀃࢑恄気އ샃늌ਙᅂ譕ɭ뙻⎉\udce5疻\udc9e꽷Ꟈ←쩵ᤉۇꑘ鑣ꁊ鼔杒檵㨽㺈dㄚ픴奒첞⌅剠뒺紡蓆悰䂬뙻ᆞ䌃鐧਺ᖺ쭣뀻᳎霛鷑硽뺿ᤅ\udf9d莣悌ᑩ䠆쉃ꂯ睌\u000b℆▨谐簤ꝋဩㇰ恤咰舋挕毭ﻶ밷ꍎサ뻅蝑䅴僒ㄍ綟烘M瑅Ｅ鬇\udc90緍ꔄu㥃ꆂ阘䨊䃥ด၅䥍ί䖡緟攱袸⪊踟ҡｷ訉蕄䴔ဃ나僣ƀ衄혛ຆ煎⌟΁餖煄떉凐쁼㊒ぞ㠃䧑킯言䇐ɄＥ彲ㇷ䴀Ԑ쎀ՠ䆮ᘃ搹킣ỉ탚㖗柜锯麧\udc11䴒靅뀐뤗Е緊캹䅓苖讜ᖎ胨氣਋楎⾍摋年❀䰑⾂怔˗倶簉ѩ䐿蛁䃠ୌݠ堔ᓡ䄱ህց謷䤀聡氍䝐Ṻ鞧넫ᐕµ頸৳傘ࠌ蘥⼙ᩭ䄔粉썐\ud90e䮒魅吐턈ց懛ⷓ솀頞Ꙇᔖᘉ舄䐂ᄫ䷃ݑ昞؂ㄼഓ䀀৶㫔ᳪီ嬅䅁\udd97촆陋᫂䃬ᤕꪁᑍ\udb76롐⊎䜼鴘痐ꤠඊ콸恐一䐨液褦ҙ瑐䱾䘩䥰已곮螤Ӛ⫫䘅뗭恃塯Ს뇍␁ɡ⠹듵朰\u0018鍅殑ꄁ昽ইꯐ倞宆閕戃囔൭ꜙ齢堍\ud994偀姝顕ᅪ\u001b䀅퓧뇽髢댩ᬙ膍鴲樃㶰᡻楁ͣ镎嶍䛱籿ࠠ禰粎䁐浗붬၄⮠ꆱ廊袀࠮䴀⎠ȯꦵᅰ䩗ޖ轾У順멀Ȉ#蠒庠Ԡ奁噕啵卖핵絈튟깘＇躌祩㻀叵肕ᡍꛀᅌ卄椔䎙龲홊廌퀠痮榱⠩笠礿럣뿏㾖蓾﬘ꅁ俤녁【듅ὲ⡏ധᓵፂ罊䧼㨸쓾슀ɒꂆ蔱でᠿ䩈䏿訏倝អ郿☧Ό縃惠଀üテ\u0000幔໰က̣ᚒ踁ࣉ裐ḽ鑨㬖동暉숐ᴀ怈Ԁ琄஀Ḹ쁀ࠑꇐ䚃ꅴ磃䀲ᶲ\uda9a艪넂鬨℈耝ࠧ䀂쎙ୣꊁ亰㚖닜닣繊⡴ᖔ᫃呫赉ꌠḟƌ“鈬噫酚꼈䞩೐㨌蟈䰄넩Უਈᅃ蕥먽鍨噊즴猢㶁킯䇠쀖ꛔ뉷嗪ϙᤅゥ耰\uddb0磆漸妚苺怇☁튼ྃᦸ健靁ހ䑀ᜒ莰⠆ĕ頇氻☂띎㘾葮꞉먫慂棒ਁ穯叆絝銲䀼摌䔔ꎔ㓍兪̈́桐뻊訳Ьꈴ甌톦ು逐ᆪ봏Ṑ㘳Ԑ슅膇ࣤ쁠❐硋䔀㰨\u0011\udd8d䚹뜾ꀠތ클㸀砺ᜂ觃騷䛨렛ꎨ簎ㄸ捄凝݁큼ཥ䍨霛扙햊䯡å㊧윚青ᩓ䥩洣꓈⦞䮁䩣籅韫ꊮ裑옳䙨洟ꈢ끑顋⬧컃༖怪䙊쨛꜎野欐煉胚ប梚Π㱍݁\ud97eͨộꀠ唞ㆺፆ᠝ịǐ琽䍅贑⎌᷋邈㩑䁉萖鬫岊浴檅䏔᝘ポ浀慑ꌔ窊趱ᘚ芀␟Ȥ䜊蔤ꑅᵔ⹒閪⩕䯕Ꜵ횑ꑍ嘆샤频亝̺䩏컕讶Ꜯ썖믚䆳豅칩衽ꎏ謀\ud802㦈銚谇Ѣ\udf23鐝ٸ䠪䘙떽㘹筣菊Ѓꀰ鯕\ud807㩷@ꂶЈǫ즬踌绒䥸쩩쉠꜔䊈帝낾͊뉐尐琨൑⽾戼뵃˻倉ޠ︂䥛賳픍ꥁ᪚螈◕唈⇀背춙鍄쒇䶬쐘쒏\ud9b1꠳ܰ⋄ꐁꐁ̄˺哈ݣ䰔⩑뒩቏\ud8cf뢖茧ꄁ䆴햳検퍘ⷫ핁萀碠푂ᩃ䨌偛琴히曠₽聥薀쏸㐛뀝섳蟳묌嗊൹鰆簼׶荧༠齯࿁刔ᡬᐊೳ땀̌ꀣྦ拌sꊉ캤쪁힜嚛䠓ౖ㊀湮Ȥ抻ᙢ톁惌ᝥ࠶䅠鐟芃笈궍龴๯蠚燉拇ﶖ䀻ݪ䊩踵읏ㄳ毀ᑷ诂祉ꂓ剿ా홈蜲⊚挆棎熵ধ듮鿓ⱴ\udd36暅薛倾濌א밗怜㼋怒ⵀ梼⢚\ud95b騟⭌痐棹㣳Ԇ鄮脔㮲쀲ಇ嬾\udf6e髚뷪\u000e蝹鲝쌶Ꝿ桛搧鬓‟鉉腞젃錟羡締盎컟\udc87혠ꄃ왲ู증敓刞恒䗧⠊퀀撝㕐柪햍鲬ﲔ᧾힗Ɗ솹₠쾐쭆뫔狴䌫ङ樸᝱ﬥ긾蟾瀯쎘ࢎ⋳Շ⭼၀抱녚ꍚꐉယ偛㔁볯鯡ꃝঀ㓷琢\ud958婅ᛌ쁢믕᪖槡㶛튱㟲޳伞譫憞圤ꔆ萙䆷඗ኳ䯜ભせ翈⎾鈰\ud9f7慖썱齖鏦\ud8d5ᾁ궥浏᧖\ud850㭣왭矕慄垜鹾丞젳Ŧ䔑鞺䱼咸匲淚쮟둿맕ڻ㩼ﳐ䖃ᇄ컼擑﷞\ud9fdᣕﳕ\ude5d賋鵸잝뿟鲾呍濙ⷭ똚巀㦍‽ﴕ쭌\udb05岰㖌ꀣ峁\udb5cǎ࠘菗챊흤픉\ud89d䧘鐩쐀꧛줤꧄ﶿ싀谝椥퐃눐일ᧉ鵙윃〔菌\udc82〔ᥩ鄡௔ᡛ퐘彀鳇\udf21瞁䃒ᯤ㏓쵭턌拒감῝곊샃鼏釛᳐ꠔ᤻첬篘僊\udac3ߎ쌨᢭᳁桱퓰萚삌Ṭ倆쇓쇍ᡟ䒹寔倔ൂᠣ්킝㶰\"拔↷ག囘㱭퓂⎔겘ǡ㤂沦컃칉걇쿵\udcc6ᅅ芢ޔ᧩藴ⵁ遥閎∴㢬⠖춉ഡ뀏㧜퇍ු䄍쎣뽃㷑퇌샪☭뵏ࢹ᫅Ԇ阁﯆슕騬얃ᵚ➩閕紩\udd7d㛔䏩\udde9籙탼퐆ɸ〥翂聦餂엂岟\udb20忐芮㎜⻖ʿ쾜門层࡜䗅υ쇼퀾䳞㌂㠡尴쥝㗕岈⩃㗜᷾쵁珍㶡쾄ퟃ泟펂퐛芮\ud818䍞㒰럎鵶쳣㟇ℾ㤒젩◐ጼﳀ귚齃騱쵷辑戲끇췃氰쎶ᐘ⎉㦣䰽䎿偭䊕貭ᰨ샓\udb62칖刚컩ᜄ脖ὂ쟟ǛP셷앭긐鴦好䛉챚㿬ᘾ䆟ὓ빈厖蛨逋ꊼ퓃ᖆᆦ\udec2఩\udcc7\ud863䘡楥ⵢ┪㶻\ud980皂㤪\udb62閇聵㷌㑅椚택긝䂡脡襐\udcba☁쎰ቐᔶ挜춢폚㍒⪃爥퇬\udf20晄붶㤳匫祸䃢\ud828\udb6d丳ⷎ⣭⸸舿쟣俚䏮㿼鸾﷙鰒〩䰾➳긻き︱ʁ⧭鸬ጄ㴂쀢玡㣍儹峴퉲鄦䈡칃턙궃ힹ隁⃀Ճᣘׂ瑇垨㏇䁺谣넣紑⼓　鋠⢓궄銄Ⲓ串鈻㪓␫㙂鉔밳혁庉ᱠĤ頁ᐙ\udc42쉖\ud8f2쫐륒⸢ヘᅂち᫏至₠ꀑ召츙⭐ു躀㔢浣莬ḉ⤜拄疪섡雔ᣥ୉猬괕踁謫遉᷅齀䪫刀樘걲⺍ෑ굌⭰ሔ䅨ꈁ⤘싢폍颡⏟㣢\udb24૷\udc0a愲ଏ⤤⷇Đ॰圊腴뜓貧㫣Ａ೗㡃줬䊩≃椠▐찼腸䘋淘慧丁瀑墉倪뮔琦⌽挩場됙ៃ඗콀溓ટ䌼ᛓⲄ즩颜\udc45ᶁ䝉⨔౼֍挦㦭좼ꦝㄫ뺃㳈뽸쟃\ud9b1嶬㘗旑쏴䤜\ud88b観\ud835뎷\uddb2늻⣋ꀦ猉㌹滘鐞퀂䄥뷣㜣嶷㸒੼Ꝝ䀏ꑌ঩夶茫ও河綀락㬻늑⛣⚠爑틼褄遯칫霴獗∓㻂̿㣊꺷서Ḡ΅쥲䜶䴖ꨒ殏\udaeb휞猅\ud873倵㙝뀢ୖ뀝횸쬶깂䍃燻堐憔ᡒ䦨닕愎✓醾쯗홳㧙쫇⅌䐿䫎갋벴췩ⵁᤫ୨뻩ᘟ䖘ٓ䈜᪃ഞ㳍ಬ鎄郓좲오틢ꊵ攮ⷚ냫Ꙛ娒㊪쫚披䮣施ᠵ㯥ꯜ\uddc3袛쒥涎ꀹ亼䉆ꋪ₻ꛫ쏟됒庴銖밚㗆\udbfb㨛蓐ጝꅫ岽ꭲᮖꤥㆩ▍ⱽ鏝ᢁ颭괆추ኰṓ숺텡騸遟哰煃㴕닳氽ꠅ㹀ꭇ㫨⧴斗䃡裚᫤앭榐涇勲㖽₼㌪킧r쳲 숁窎Ǥ꒭ॅ涊᧳჉쀳엨 慛떽⮡찐ᩅሬꩢⲭ㧚똣ꈈ䷹ᷩ梸悈ำ咧삁腩켃⭜㔪閎ⵏ㉭㴼ꎷ뀲娪它ⲫ寚㗺⴪揇덚䫉ꛝ褐䫉\udbfb礟䊼\udb7b疣엋츠䊿宯㇍鼃脬⯌羻恦⩺㘊2ꛝ倒낏ᬲ砞ᦷꠙ⤍Ɑ퓛\udca8毎걪㗘偗Ũꦸ峸ꅩ슥䄝믅榴뒁\udb0cၐ丬ǵ᫄䜱ᨬᣃ狝ꤥ冠荃ꓰ妪૔ઇ춳쬭꺇摸㯤晇ᑫ嶔猁ﾡ풚㼺蘌뚇椡虜㦇걭蚺텲耫엮萃岤Ÿ玑岤椛㺨㫰❲ᄹ鯴瓊呴웴끪ⱺ鍆뚒爔穂鑴✌歂皃릭\ude15‏侭ኵ䘙ꋚ궸쫬櫄纳J綇⬓虜箇\udc79胸毆䑬ꀃꄧ䉰✃ꒂ鉷쩀ἧ≱骙옦Ꜷሂ浫婼㫔༧쉠権㾧٩ቊ盇塥Ī燆䄫蘑뚴㱿蜰᱆籣筇䜒搧멷Ꙧ炦ᬎ栦虤쮺湣ꈨ밀쒜ሠ숖\ud850泜沥롒툗⟃㺝㎻讏⛝같ꉉ쯜㱜⇡磒ê堋릺灼됊٢穳↬ꙿ쿪蜩뗆\udeb5\udbc9ꈛ㿓\uda10㘛襾ᩝ갚⥥橮掦쎫ꚶ냱᢭Ҿ쑬쇡搑瀕ਔ匆턡လ토ᄗ䆟⁘Ꮖ쟀浯ᾥ抸אָ➽发⭈檐囝ࣨⅨ㘐명⩌ﹴ㋹ါ蔓㌹ꖃ뾹겅撀뵆誐깗蘆᧰Ꮖ砐⯞੤䛝챝祚\uda2e딢㕽\uddcd鼅臈໒ᅧ桖蛱窅淉ᗖ憗ƈ狂쟐垲䏵嚓ᣖ蛉ꢇ\uda01宦\uddb4㴦킹뀴䪂啷欲䜇䆓限ᮖ頗随ᾣ⠆촉\ud890膋환ᣗ繽⃐론鼢胅痖鎆ᣬ徶⛐⊥밳\ude97꣆읁䁻挜읗졪胺ꖲ亠꟔拢깫뼖楧\udae9槚䆿\udbc9濇饤晃룧毎菍∲ឭ휧ᎬƓ꒪辤鱼ґ툫렯❶즬\udbf7猖㑶鈽민᥆歧ယ鱯\udac9熗潫䟯杆饭靎歫柒⏹瀫瘁Ⳃ⅂辀籐棪꙯盺狦該電㯼圖ừ䎁㧪꽥ྤ欏煪霘Ḣ붩΄ᥧ軐Ǔด儫歳쑼淈辜଒꣥供㣙顸鉜귫踏朗哵鬰ᆓ듩ⱒ퀢㋋ⷄ뜭铑쌽䰫ᡙ⇍蘌ǈၤ豿⇑쾒አ沇珏룤ો쿕⏵녙䈆돬줆㰖讇剑詙韖튡勣꾊믛쿊첀ಷ엗⨚굗з֨涸ᔥ혽썋왨䮷똨ꇓ얡᝷鷡㣃䖗گⱵ㑘墪뉻֮逋⨮鉋é勮肠逑蝜⁽氭Ⱄक़働ᛴﳇ晰㱎佶\uda09绚襱࿦뙏䆾侠ꥦᯏ糯㣴靄ᓿʎ瞎고와ᗀ赮쾱ꠙÃ㶡퓛椡쬽룏롨ਠ艭令㛏裩꠲墫ꇛ㉩妋盉ꊟ㚊폊篣ۍ徣㴋蒼껖ﻂ援鸙ৃ\ud861ᱸᅮ诏ᢺ聗΀泛츅璯矘⨪쒽꼽ᙨ稦໾暖照雥枪灙帮ꚘƧ㎘䞀ˠꐎ肤͠눅Ѭᨭ᤬ƕ헳徵館葔᠀ݜ\ude81螥ⷨ쀞ᓱ৒\udf05愡耒\ude1c満Ḙlଠⷼ\udff0࿵ᫍ\ude54Ϟ嗧\ude00᪖課᠁訇\udf2dﳐ\uddce㿭쟏杞铣ﱧ〘庢欖࿎盧雤⠮쫗㻶엹漥ꗢ湞뙫옮ᔿ婨뻓뽨謹깣༳곤ł㓃庚ꂈᮽ 䉕넪绥瘬꟩炅푲໨ﺆ◪ᨪ懆旹级㱺㯬杋篠翆㏸븶꫾♦\uddad᤮颦挜헺웒걯ﯸ꘻黼㡨\udf1a顬잆쟶\ud988Ɗٿ侹듔暏뛏轍ퟣཱིꠀ㻾羆㖟᭲㦙麙疠躁⬋茌쩊薪䗡斫⥛ⴛڽ탘㬥髁ᱫ拣袞䲑ᶑ䆦ᡢ倅ۅ扬Ⰰ귌홖\udb2b丆苴ꬎ⥸摕君叏颠猱蛽蚯띋㫈ᛮ뮴鴞⡸\udec0根瀜鉽炭ᇦ\ude60☳䓉秃竀頸ꅫ੝髄ㆦ巌ؐꘗφ읧ᕐꥌ壭䚚᭭췇̪ᨖⰊ炻쁡糫Ⳟ깔ᕅ뱸쫏途脵ฬ⡧㰷淨ꁀ\udab3何횱욫ኄ鹐䂮ᤸ揥㠝裙⨌摂歷㻚癍ꍘ뮏㈣Ṣ쒆\ud832셮昃粘갺둘ⲭ詇所裠ڠ襖䢮\ud8d2ⴝ䫓淀컊ୀ梼〞܃٨ⓧ掐㐰ӟ℈ʍ撙쓙๰ȁ塯\udbe8ä᧗졶畇腌欁ᜀ‮茀⏂칌⌕够Ґ뼁榹ﱙ楿᰸Ǧ矿봵鷢쀠稾퐑ち\udcf1汷㏘蹺ࢀ矃缤ژ⿾ꨊ㬼䡋輆䰃堌躎苟꽥顧ݻ뀡턑뮯贌ჿ⻻‼郳Ѓ㸵띅䠛㎣錑阳릂첡ꣃ堉쯟⁔ꖭ⑕炍퍕鵤㡶좖䦸Α鰹㫑Ѹ榁瀋\udc71튡횑堏ꑩ茑辸偣ᐔₜ襘墼ߧ䢿蟃\udafe肈릭ﶉះغ䧀ለ觘旭࿩५먗ퟡ䢖࣫縋盙ꊡ烰ꃘ歷嘯㦂밥즸\ud94e౐т콄瘸⣬颢앉逡呒\udb13蠇旽慀쳨━ဋ㘐쓸ւ앤炱藍쁀∂ꀑ㙂醙⼍敥偟奪앖밡댗灟⧆䋨魊턘닄䦣轫ࢻ륉핦佷큆ꈽᑠ稭䂤葫⽭伢㧪┄쥡怮¿佴丰塎⳻脤㭑퍯途ƣ鉴熔ꬷ芿沝泋醁勮轴嵡懆㐘휅稪Ǽᨌ䀃‐飑愑㚴瀣퐓주姲Ⓨᑹ䁅ᚠे\ud801छ⛎ಢ﹏눥䐪㽀䪈氪ꌍᙘᧅ≍ᇰเ溣棁쒋\udf3e⎌쁻䷍ሿᢱஂꋜ泂舊螞ズ䈉蘑呬씃屫坐∘幔毇䄷憐颼㔀뺜쑣♙ᆱ᠄胊恴詄툤嬩嫰ᜦྔ벢౫晖ཊ䲑⪍㩭ఒ䌎\udd1c랏퀹礊ꈶᬰ爫⨔腊걙뭥자틖촗랣곢쀶⚣츙桰ȇ銃肔㣴ݑⵡ掎＄掶ᓣ㶅룉॒襂偁゜똥䕜⬺侀ࠌ5ⴶ剠Ѓ즽䀈ᰃ䒬⊉秱᪎⏬丈䈣ݴ旕혗㤉웻勮ힰ≩ꊵᝄᨪ襛摪婀퐀䢼勚⯢텈瑂鳭橅觐覞踢敒肝㍰ꜚ⃬댂⤨吾謋窂礝䀨ӐӉ䔔穝傞胔ꮦ㔳ఛტ狐粍⁸捐⳱ᔂ꠵䁪୐㪃퐁ꆍ๘奉ﳅ谠͘ᰀ⸁큐䁰ᮠ鐇Ѓ쇶܀⠢刂Ɔ槀ㆄⱵ͠␃験\u0011Ҥꄃᐉ怏¸P䚅뙸芲岠ᴇ倎脚؀ᩦ栌¿腠Ƞ㘅ᑑlᐐ颇⠱\udcff䇫⡇ஔ凔춦紲琈쳦暳㶙鳎팩风ဃꈍ怘䍘㈡㐎〨≐ऀ촄쐵쇶Ű偀㰅ް㎀⸄쀋䁑ኀ좄倃⃥ಠ䍃ꠊ좻Ɩ䠀㦘클≐ᱠ㘁砣䇏艀殃ꈒ逝Ԥ⻀쀏끻Zᒐ预ꀨ玌芤　켙ꂆ蟜☠쀎Ȝᶔ얎⠸⃠ೠ簁䄃肇ݐᴀ琅Ѻ肼ᐐ \udb1e豐执ᐊౠ踨⍀堏搸pऀᡃ栆셶݀╃怘ꁹ憀㪁⌂둑Ꞡᦠ熆档ऊ庀ᴿ⓴⁩ⳁ옇⠺ΡĀ≄쐹ෑ֔ュ쨝ᒔ螨ጁ턎ꀀ⊧㟠떢谄䀊᧤媁둝ۨᰨ\uda0e艨폡⾙ᆰ鹈Ʈะ฀逜ၟɔ㨐ㄌ크ʹᧀ郊눉9锴ਁ̑燎戼ヨ㈰탰잡徳倩사豐ࠡ够聈\u0010蠤뀄ꉼβ鵀ᔽ䁴䊀呐㐜恺ƕẁ먈騎肠ด\udd07搋⤴䎸簦⬹妪콖暳떛곽昛㣙떥᥆飴兆ࢽࠪ쭖䚲떓경搛⣙ꙡѫ鵌㫤㜩륈Ů孲㮕\udcf4⃷⾹ϊṷŇ鵼켵듷쨅㉡纅顆菔܄ᠸ쇭誼漻离쿞绁ྒᐓ⋹怂빲䀜冀✗掠ֵ௳ꍈꉻ⎨ච鿍酒䦺װ⠡\udb22܄ᭁ\udb0a灴古ወﬀ츆퀐尌с嚖癟Ꚍꏕ繉樼ᬅ䅯戼䀐撪櫓䘰㢴䲙\uda8aັ할們ੈ嘮ഃ琎胞⡀ቩ㡘⩨킠Ạ鲥ꅦ胚ʀ笣贋䂖⇑ଈ\uda0dᩦ臐Ạ㙹댭鵬\udb67\udb31\ud9ce짦枴뾐⳹铜ꋙગ륣⃭邀ݥ㬥\ud93a⯒굳쨈퀨Ϯ᫠ᐫ账↑ྸឃ㠀쨛ឱ턁瀒Ĭἀᚂ唽讣ذ槤뢦듳졵㵁騅ꀆᛌẹᜄ湌↛髜眻립쿮想螗拘闢뤥ҩ⪚ැ຀ゝН݁ῐ搆벍ⵠ㯎쀞|ꏤ䒼郎Ҿ壳㥙鋮囏⧹꤫栙쫑丰簤̑֘Κ㓊쫋룔ᑘ厤㤯쒸쁡೐ୂ倞좆蚀ກ騁밋ᴈ砽臆䦳Ⱄ烛ꕷ䅁䠔ȅ᠚닠ชᚯ젬쫾༲ꯢ标䀆⇱坁ᕐ덀⎧촁袳巐呒팺삩ꁸ❀郏蒷摻⯙㻋犃鈜냤벻ﱯ⩪粊ꇁ끷晻㯙뻋왭殃騜쬷䕮蟑祀꥓䪺嚘놕ᘮ敵諙媪觤⒡瑩Ⳍୀ㍂퀎茴ᕄ夫ᕀ䬥崪\ud957쪼▧쩕䪫煑㳆聪ꤥ梦贷䃚ƚڑꬫ▆욵溸㠏倈Āꔀ噀腜ꄩಈᷠ葥ꈖᵊ퐈鱜ɵᮨ஄풯ꨰ廣Õ哈㗋䗩瀡螉셱⨘ᘬ鷇젮\u001d洆ꓛႮ㖢諐ᭀ䱌큢툖默늠唒쯪ঢዥ傡\f┕Ũ욂⨽鐊鵑野蹬爑༜쓧✵㧩캑毋굚\udae3啇☹怃蹘\u0013驊섵ꜣ瓀구꠫歆㪣ᒘꆕ녋⩬刼崙켲겅©퐍㒴ᑕ ᕠ䪥尒륖蒡嗇ꪉ䱊\udf46ꫵęꢕ뚠甀꠲儴ዃ㺿饍䳀━栋耼ᴐ䰂䂘ঢ笣┐킇Πہˀ揔곱ﶰ켠겧䚣䊬Ᏽ昋㩘᪖ᬆꔍ簆渖婘⾢斡頇툴Ӌ°諛᪬双ꎅ騆蠴伢浠炸ꌳ䭩劀聇兌Ā鸬퀦쭌䦢畆朵皔ǎ干ஔ岒⊹嗉ፓ櫄\ud82c딂ⶻ㦹쿎慳讚峲㭅ᵈŔ\uda00甶트열ꬱ匪걚쫛ᐙ뼕츩譗噦溪㓺꧝䒪艓⪐閄룹칮啴䬾\ude80熂禮礩⮽䓐ᕀ຃嚁대휇츚쓃艈ⷢ쑅Ҽ勹᫑ꋎ㘥菈ᜊⵆᠵ㦰쐖鿦㐔遰肀዁먁뀣ǐච\ud80d膧臩瑂솽ꔈ檬՛郚苔㗧Ԫ렂ꐾ㯹ಳ㈀鎨ꂪ躨㦁⧟耂ʊᳰ㠴⍇孅ᙊﳐꚌ同➍π챃ᩉ凞ꤴ㍬儮쯢\udc5a๑ᢅ铪農ᴁ먈栎膀İ婠畝ǁྐ␁ܮ傍긆㍪뛌»귝Ừ䤨௮ｶު췶↘㠏렖\\͠휄㐦⃚ഀ偂刍ꁠʀ⾲絓⁰䏙ঀ瀅㠡ꁬ໕⬡᠙ꂻØ↠愇>௘ὠ钇\ud827倭鳤⻴娉恴݄ؠꀇ⠎釨ꏐȸ䃃踄こ蜌⮚澓ᠩ덕⮨ᔮ쯭轪溶劰얏泓䯛Ꝗ㞲귍஬䝛譗墪瑒撡ꃾⴇ嶛쇐瘪ꗍ烨絛岎\ude83碷ꃍۉ紺鉀ꨴ協ꯠ䬄퀶 覈㖃ᐍ恠Ԥව䦢ڌ떨ʝ쾅㥵ᠮ璩䃥槂꽙᠀ʘ 렯셌凚\ud866禔엀啦ⅷ哀鑉닺ᄺ鎠娃ᙫ䇆ش稑㼊恍ƕ㪢 麌ꜽ秪老窋퉞较޶ಠᤴ⢢쐾黌뜽溺⽱筋풞鮵\udda6Ň嚛廛ꚹ햞꘰캥ｱ骳Ȫ⡐οٿ涛ວ㙄ꘝ꯫襺ï颒禬镐Ꝑα璀͎赡뜃䨖變᜻猗互疚䠄꠺ǧ臠蜃堉ĩ̈嶃㼓䂱셖縇ﵖ囄㛈൝蘇᥃怂渀퀐샭䎈퀠彊꣬ǐ璅妤爻⃶囐簃琇䓣ɑສ䈷䀱ꊮ춠놥儙⪥䎠稑隶怕䵺耆ꖽ淨\uda43ힶ聯ⱺ붵捻鯚\udef6ὃ₩ᵚ鮌㓶짗榦痯濓文纃续枠臘혋蛷彦쏕䎳쎧꣥䓲㟟㝆臔ࣂꤚƎ谎怊⎋㈬쫂觛፝ꦶ䱦鼕ꮔ㷹纏㠊ࣶ䉪⧁鰎ꀋ胘ॠᰀ렼㏁ะ劎閨茕ᤠ젻出进匍옅䓷☱㉸솢ꏳⷳ繈鵃ꁼ퐨鉠俅ㄽऴഩ螁ⲫ㖩䞍Ǌḃ䳒垪⮽㷨꨺⇻\ud948䇷ྴ緣䏝ꙹ镪瞽몙怀慎툾辩䷗溸퓻渽䪍㜽ꩵ㩭鵇\udb5e㺀䗖኷橵➋㨃꫟趃ꃵ蹪㵐❡ퟩ背ﶫ唨䀺숻劄䳀❀ᜇ怶쇶긶͇ꔞ⹼訧堆覶ꇘ肺ġ琮➿钒氃谅而↡疃\udeb5膒Ḉꈀꤵ쀙㼆讥鍤ᢠ탰㶍駝લ奝\udca5䕷찹囗漊똧뗗㋑䜒箠겠੐ࠪষᢀꃬꍾ碧୏㔖鶔ꀽ⟰鶌ꠣ⡅쭨֡騂뀟ㄶ犐묆ꐮ요㝙锏섢퀏驼弶流~昐從ꐠ舀ก잫鿜㵁鐇길ʊ蔀們聠뤮⌃ꄂ꣘េ릈퀴芜Ɍ⼂耂↚འឃ퐕젺ɔῪခ桃腁ː 䐢腮؀⮔제挏߀㻡三衰ꁀ᥈ћ栝ᣀΠ၀접䃝Ř⧁킀䎂ౙ颃耸⮰릠☂댒絀拴á紌㠀솎ᠰ鎃ఌ\udf0a灍ٷꁭ۫䜇耳 뒘瓽\ude9e磥𧻓툲瞌馿闂깨⾋㨋ば噂먕琅蕼⬑嬤牳ᗨ곅瘪훲Ꞡ᦬栎ꭒ儙ퟵ䙣﷐헺挏斌괣꛵洇⍣䀷太ဏﹳDꆀሁ㒴㑽菙ː倇꠱䄎͠䎁쀔遨ᰵ瀱ࢺ蕼玌崬呑尀쐄≖ﻍ㉤崪ꛥᄽ⍝㗾误݀君셁અ㨨阓调ꁢꉑॲဉꀕ铨̥货損㩮鋥湨쓂꣙突ᘳ ⷐऋ䋚ᘞƅ쒃慷ଦ鹈쓟ׄ⼡甋ࠇ䋦ᜁ랅쌞徸쿞懟䲂烍㘜쫀ꠅ嫼琞ፆ겈៦㖸끍禀떛쑛ռ襈磁䄜恫èীᯔ萹䏙͙綜⃗䩀ವ\udc02굺슅鶚\udd47Ꮘ퇕䛠ᾛ꿓\udada膅奢ᵗ㐄딛껑ฉ㐍ড়큨酛퐪慽䆘倱轡䊀嗪觐Ė袾萒ⶑ抋呙ꋝ᝿㩩ﶎ訤\udb84帢倵淃荑皋圙卍쟮흱鏵穩俺᲻纁儴᪅룚絺枉빍行桊ᢵ提鏨ﰍ䷠뒀ঀВ表熃ꈉ恟Δ਀햎è࿩洨⃰뫔ԭ᠈嬳峚\udd46꿀ⷸ諡뤻믥仚횠䌑鵣\ud8ce尭㲈龄ﰝဠઅᆧ锂觲䴪Ŕ⪆鑯쪥㸒ᢴ얖⼢උᱚᛸ땲뭬荿\udb5e颺엶⹱箋뱚堿ួ뢍\udf6d᡽폇쿑懌浽갻Ἓ웣䠉뾕뜏뾣쌧ꮌ쟷弅﷫퐰軵ഥ㆙쨋젫᱖靇⺣堦榵Ϟᖠ꜁怗셙䚰瑃逅\ud8e0዁ഄ䩮滗猀⭚홣ꆵꊀЙ桀옜핁ﻌ횑컷睝휔ꅧਣ䬪憏쭶篴Ⱅࡇ㱖䪱倻໵ͯ쀋৕ᒥ锭ꥣ䭚姒퐀无澠ꀪ韔릥촃楷䮊ߒ\uda49ꆬ麣ⱽۍ缛罀✿헡롴庻ᮕ岁駱칒퀘暛\ud807Ѝ肕Ӱគꂔ荘㗁硄沥⑬ᴭ쓝鼖搳씖⡚겠쑦ௐ鼩퉞ꇤᬀ蒉菉⃭冖㉘튫䏖蛩췲띐ﱢ됾ᛋ盻桠ֳ鸑胕曃䗐皉쏺ຊ✫杜俑됓鷴⭖擀訏竓⚙שׁ魉珬躨ꄬ襬䬒媒얋撿▍᰻竢捄姸鞟芳餬訝枰娆椠ꀯ腕ᰐ偂竕鰂ꠀ瀚ⶰ၄ᤦ쀉ꑐ䇐ʤ⠆栬鮜௮ꖂ成@ኡ㉛鐨⊟㡴䰇\ud801းԀဣ㠚맃굴\udfb6龹挛ꕘ쀷䀂럊邏碵䓝氦젻尿츂砇\ude1b啺圃㒙﷎ꊟ␍妦섐⸆gነ鐁퐳䇁Ѡ嶁䀓ꠜȏ汷膏Ꮜ닰워铝嚚䇬쩄캡쐉盅殃祎⨹厨僚ా쪔ĥ罶喭\ud984玝\udc55ࣞ릵͵ꇠꤨ☈䝟釐勦溭臨ꗍ኉壚터둔釯呩쿎祳\udcfb聹폎㙺෰賧᜻晀渶ݳ㳫၆వ揈쾸昳咾ｭ⼓㲒鯖ᵱ呹ꀋ梮퐄ᙎ⨄䠬〇鴪츫\udd5f퓅訨ⅆᰁ괅覗줃ἄ﹨腉ྰ伳\udf11ꀚ䑐⤠塌蠵䌔ᢠꏏ䅐먇㝝뛮୽欢򅚯뜐毙崚ꚻꔂ퀫简֣困钘楗䫯᭱虳ǰ᫐⮘e댨䒂쪑‏ؕ焠㝒嫻퐴અ읋\ud955긕㩚ಕ내闺쟂畗万‖ʹː繺⅁Ԁ⌂鰞䮆芬⠀摞᯹隁ﰏ遾菁盠ꐽஅ㜠ۨ☡丁嶘Ūऀᬇ䈺⠌貈熃尔ް㘑뀃ࡺ腁ఀ欇넳膊д琣ㄍ倢뤀ᜑฃ࠾೨ម蜇Сꆋ뽤綁胶ܘ얡ࠒȚᓜ⼅晵䏶Ʉ偀娞쁭ۆ䷁ㄎ》舜ৈ颃鐂ℛ킔穡⋶\ud99f妗ﴊ㠠쁎ᐰ펀谟ꝳ疾삮݁⇺텲趯ⴇ緻\ud8bf䀵蟀睡ﯵ꭭ꁏ઴ί愝为䳚뛑䣪㾢ֱꬊ찢힐琊⁓聜᪷ⵂ堾솺դނ鰞鎥변⌱톈혫ⅶ㢼໧禀⻡뗺嶝砦㝞堍떚ฐꝝᴾ뢱ₘ퇊ŗ\udefb⠭⇖햐狜쏦赙鄴ๆ釬輤ಣ棾葺㸱憐ߜ퇄漎﹇鎼퇼硣팞鮇总꿟䛋은笗誯蝨⯶ꃝ品ﾾ䮢껆窗Ꮝເ㿳烂䎮銫엵Ȧ䦳湖봟࢜썻ᐏ廩푗ﵛ狰菣䨀帏胘ᒐ欄箫뙑얮ঁ굇숛\udb88䛼䩑水羐ⴼᯞ표⎏阁\udee4Ä鲏剞햓㚭阌粍奮觳僌먂⚨殽䗋꣖㾱\udc79怯Ὸ޺㳀ھ㣵잞㷱ɼꀐ點퇗ﭥﭦ᧴ꋿ彿泥\ud9a1ࣛ鞬\udbba賞ë㜙紁\udf9e￐寠고達⣻͓㿚ﶏ톾╜遵軇⍙柄가ꢰ᮷䤥⥄邬辰䨂戃胞쥸ሁ턎蠫℥ꥐ贈鷍盺ﺸ壼돯龣紸䍿秵힙ꥡ롐짻懮颫\udc4a䅿監䔱ເ倖儱녛ࠇ腼夰熢೭戮ǋ픚⟱㳓⩏㉻鏂鸞ҧꍿꇴ凫훿擱췝ﴩ䗣帗豜ﷷ쬾ᴏ韭湮갟㘸ꗝ蹊럥\udf0cբ銡횀괟饈䌣⓪슃Ꮩ豩ঀԉ夫ᾖ㺬ﯳ骀闣怮쀎ꢠੈ⢀贃怨耮艐ɴ赾㞳㹭靈⍰Ⅳ䰣᤯僩끀ύ㰁ᬃ냥䁸破߳떀읈ꀉ캽ࢦ贽鉞ể糨疾益⯊裚ڈ䝛疯㎺肪箩脰\uda78氋Ꞿ麆砟葮⩹ꧡꞖ鸺碐ާꤠٹ\udbec讱隷惱뎾㹙ꕧ讛﹔⢿⧿詞Ǻ\ud8ec喈໑磃萎⿈溥⨋桠Ы☠ᦸ廁撳䐘﬌螏贶鸫퐌蠘\u000fΡޟ袨휁ኄ耷䂻ʈ๒⽞೻\udfbc绬賂蓔ㆀϣꐉ쁬续㪐ꡚ⓶妪礎䚵㋵βZ̈係鮭슫혊鯴浂붆끮ꢱ鸖芙ꖞ휃姫枳䃶碍஠篊ꊋచぅ鹖磙뜖⍁忢麮쁊耚₈᪔䤄埮萟ᩈ°Ũ⧀笇\ud805МkX౐ୈခ쨂嶢肠胹Ұ㩨챻\udbe6﹟篘ᰝ龦븅ᖢ꣔쪨航៾楹߯掿솀އ騨슫㋡鶕烑ꌢĂ녀洂未郠茐ޠ᭼쵸考ၲō蘜≀㞁쮯遥ŅҠ᳟霁跻럯瘕⃤萓ꊀ㣞뭙䷪䊆袉ꎌ探⢨官⢂쨚꛹窮쟁覈鏙ꊀㆂ꣎嫨藰곀\udb06끘ܜᩰ私ခ蛧ꁼ쨊蓘ް忪쪆ᨄ灎耧֜ᅰ曁鼆ꋭ빨\ud8bbꜪȟឌꇐ㥙꺛腖馺勬ᾴ帯漏茈撫辡帬렠̈ᔈ㘃ᐍ耼 Ǡꢠሆ䡙갇䖁⅟ꌰڞ஬蹡鈛⺂胬팵芀ྎ釀极ힸ墊셒Ṗ봡㰅툓䡉⅌虒ˈ岺ꏃ纍䀒ᐓ⬬쳈噡쬳ಡ币慃笖ႀ₾㞘㵠逷ੋ⫓⪚ފ騢㪅퀜Ꙇ⃞浌贲濊\udea1ᨊŜ፰䐀眅耯۬۰您骇찖ꀪߜᖸ珁꼇밙恓鸷墳瞖缆胠ࡿ鹎蕴ਕ뛪绸뾠Χ膐ﭿꌈ簾渺䰍ঢℿ즴ч᳐䪁备⠕邶磠蜛谠⸃᎘껲ûݫᥘ馄刐ꀩ愕ᮖ᱐崁롆툓㔛憘䖲ᆃྰ瘛塻憂ﮌ଒ࡖ蝙슉〤꫋臒랫됉㶱틂寐ꙵ黊∆࢚쀶騜ै༠言숃ࠏ軽夬ࢠᴀބ뚡ᮠ酈̉ᑰᢑ䨂䤝②삲䟉ᦰ䠀昣섟뀕逊ɀȠ噃ꠇ⠘Ǌ൒Ḗࠁ䄈ㆢ는ȴ௣軀쩙갈瀅ꁟz콠܀ℹ戀ʌ뀗δ虤㎀칙』胍ʈŰҐᴂ蠄ꠡꃤ媒懐଀∇鲀먲α─䰂戂德䀈耹ገ⑑묀쪈⮢ኔ脬܀⡲ᎁ퀁瀅ꃝ˩ֺᐞ鄸洄뀸‗pຬ덀䰃\ud9061䂧ʂी┠⼃∊䦽胪쥁ਠ݀⸂貺胈胨ঈȠ犁䔂\ude9a\ud856䎡ੈ⸠犁氍瀮생ʉ愘乐颂柯퀒샻莘ᾰ㧠蠌퀇경愘ঠ׀쉇\ud808퀥è膤漴刀ໃ∎퐰阐ƀҰᖐ搄耋뀢聂傢l鐐᠅搲肘舴ܨጀ䇨娓恳Ӛრ翁ছ㸓퀦䪎ꂰ舑믡ᅙ䊮㎌嘈ꤢꂕ鉖ᢩ抣誨໥姸៊뙖륚醢롷釪Żྸ܀묃堅⪳䁯Ͽ⒀ͺ쳛ꄎ麦䪿蝥聁ⶢꊃਲ㻮޺᠟ꞡ傆胦ব㻾ֿ⧐⻊븨萙퐚ꑓ누䱐ऀ悉畇ᘬ䘤菚䯠鈰씀\ude04諸샻裾蜐䙶騂ྮ萮뉖胂൰㗀䠁൧⠦⁐懔崾貚週뇙颙⇈ֱἣ犌톍넞ⅎ摫ꛜ仇突愻↴ᩲἲꎐꮲ喼ꡉꢿ╆謈财ཡ戼왉ꬴಷ鏖폻ꨠ摌F䒙ᙤ䖑噄\ud917摂酡ꓜ䭱ꐁ뜙摵醶䘨།뎦㻘\ude18ㇷ蕅됦万놯骧認⌸抬埡㿹砕ྕ虿蚗ᵌ莰㠣Ĕ鈺ႢΨঈㇱ贁각쀼ûƗ✨㼪钃葚⑨葬禠⛇池ᠥἑ餼⠢옠蠾ࡉᦔꙶ喣뼓ᱪꉟ왛ᮀቱ翅蕅蚎ዩ쐼䋬嬡Მ譥ᱤ३뇇᷼扱䵃✜࠮᫶∋譨\uda21止戀솛⠓٢ࢨ꽘패큰웇驙ꮚ몢ๅ㤖뀋酮䞦蒰➑\ude46珞ぢ釳⡰鎈ᜉ깅⨎फ़䓹၈㦡嘄ᢦត솸쐾ᷨ幠煺樋䜫ᇸ央\udff8䏭鮟꘎蟹隉혱練䛽㯢ࢂ縫켰 ㉕詄莱랂ꂛ钾䂌鎁ꇳː煣趍躛ಹ䯸邌⾐核ꑩ䈦塆̸Ҩᑐꄎ栏㆘茸ྰៀ\ud844讥艾⛠鬂簉\udf22ꜜ艣놞╧Ṭ͢Ⰷႝ뢑䐣恸臟誺䔤碜觋㋯੸薔䫩憠⼺汤īꃘുጋ궓ᩋ⨈ሪថ鬪隆ⲹ혱ꅴѵ閮얡넗쑉狪诹လꅾ耂ᑑ聡䑅ᔔ傉㷆訪뉠儛╬鎲敺兇좝硵膷蝏ᤗ阮￺ⱼ쁘鸿꞊℅⟤莅飹㮧ᨁ頀∌ꁺㄊ⍇ₖᫀ贀\udd16>Ė䁤鵊㑱㠤삐鱜ऄ␠顒䪢⠥㒕鱗纬㡙舲꿉趒⢅੦⋆讚Ꮡ쪋騘늙⧊蛊Á㬃暀⪵\udba6躨豑煆鰀鑒儩䜸ڔ䙑奇眞榞몱䟅ᢔ牑헪鑦凎ͥᙣ膆ό会趌⓸溪鏉粨벝ꉣ䠥뮠汍뎀汐䑋嘘䥺许醜娉ꃃ捇쀥氮넧丸槹辧踙\ud940ঈఠ敻甅搧㨊饙೐ሀࢃꥭ瀸㢠◗䦱퀧윔頲⤭ᢧᒂ稩씦抟逽⡈ꦝᩱদ朓蚶ꗼ쏍ጀ\uda9eḯ縙廓㴊늣糩疪⠷饖鑐㬠㓊誅ᨰ닓ﯦ苮ꂁ̇ꨫ鑾内䕤ቔ笐唚瀠꤀婠ך䅑䕅员\u0015䗐Ք旉䣚⪑ឦ⺮紐ᓸ嗪ᪧ\uda83閝ꂄᕦ㶂γ₶珛ᆚ禩隤ⴈಛ넽롬`─촃ꈄ耦⃵Àຄአ\udf6f챳䃸螇Ⴕꑱဧ撐詤楊鬚絉㒙驛ⅶ࣍䱈い⒃ꚙٚॵ讣Κ穀苺轭䲥몪⍋⯖ㆠꀄ䣚⌾Æඤ傩婺ꊹ᫕ὔ叀赇㔚푩⃭䜎阍贙畅耀푓儭䕼۔砠懄ꛩ豍쥊ꗜ銺現Ӈ꺓퀘ᡗ쉸ꏢ롖Ⴊ匓જ⨴쟅把貪쥚㌓ⱆ觲쐺讲뵖瀻䓪穒᧍➃༜ៈ䠂╉枴걭륾谑щ碘耏뀞ႆ胀˰─曋％샏섐ᡨᐐ䎧逑ᱹ婡ꓤ颊呩ꁥ႗ᩙ耘ꕁ鲨둙枧㒑崀ⓑ撫궙떙跚Ⰷ뻎塜ꋊ⻊꽛疨੼᤺裊粨Ểઍ騁꠺⎝溨谀嵄푀텃䒍ᘴ䓑升⩟\ud80d曵ᔄ㽑荇ച㑸톓䘢䏶溇꼘扗ꇿ᯶鲾ë⎨幖蛜鲺嶡럈댘覯┺賡膙샂蔐鲳࿑᧺╄䡇庄䔺鲦♎\ud939蓌Ȩਠ㣀좂蠉쮨¤№偀蘠奿꜅逆硩뤥⊑ᙟhꟅ鱦噱◃띡蘕⒄青眨ч嘐⾡⤯䢎虊脰ઘ뮮ㆻ䀓䅚Ǌ폹戚늗⥦ꜚⱨ촗㑂텋䒭ᚴ䛑݇ᨉ홈楁଴糑츂ⴚ瀲톫䞭ᦴ啶艤⢐襷蚉麶峲踻榐䮾橀呖퓅앬誢囪搳᪕龦輧榛ㅯ쮏䞡뿻砟ﾉ襡뤚萞蘾郬襖㵞炲褡椛撙♬瀙囄ꊟ椀ॱ襶剈ᰁ᠅內塀˚྘ᜂ줟뀳䃈膴ପ䡩ԇ肟੬煡撁頞堙\udca0㒖橳䥵섾Ј㖔퐁憬⒰\ud8cc䎰候砧䚘䉴㤥숋ްꦠ낌⪐줜⠨蜚㒾銣५늰ꇇ䨽氡먨講둾톇䜝ᩴ煀查치㚓ႀǑ、ᴒ瑪㋳ꥴ岩⺛岘멃ﺶ藃ꁮ皱ᮧ౤屡훲晅敌犙髥팓깊噌읅ꆹꑫ놩⎙륪쑛閼䘀덥♪⢄᧸㈰Х㬁蒇撺쇗ꩈ㵓Ⳁ蠫탄茚附ꅦڑṚ聊腊ꢠ㣀灸∇⹐䋬Ԟ祾ࢀຫ頻꺙▃騖羹跦ꊕᙪꈉ敧ᤨ㔀ⓠⴉū⚕◦鐷밅⠇ɲ׋㌠醑ᅦ鋀憙ꨌ鬿꾊佅ॣꈎࠞ誢ę静ᴬㆼ釸䪂࿇똀藺䞘栽逛Ƭ઒攠䰃ꄄ␫ᤑ뫨啯뺅ᇥ簄慉蕦ᑘ啡庑瀃ᐉꠌ_ ೠᆀ瀂ഛ貿嘴饑㶐맠簃座젮芏ᔌ붐ႃ퐅岌肊\udb34Ԅݐ裁갈늫郣̸Ѭ뗰䤗浍躐壊䊑鬂ఠᬂﶙꀋª船骹矦앫䱚饨ꫫ鋾䳙嫆댓퀃䠰ꏐ藂霱᜺챠놘茋ᬿꝲ琉Ⱡၭᚪ邼懖뚹鲤履蔘騃蒙Ě㚏樫䂂ᧂ澶媀祣芈쀳䒇ꙧ䶊²钇龛Α襀ఀ欀늍耐ƴੈⰩ市얍冘咙䦜出㙱鍻髣⠨욢ꅍ꾚⸙ꢠㆫ⠅ꂬ껈ᅀ쌃豭ষ設ܮῐ➅镸䕠Ą塰ࡅ鄹⾑ᮇ蕞ᙢ忡恅ࢃќᒀ駣읟絅䩦㑚ꙶ뤭᜿隕몉瑟⨈꠸₀匠✖̕℄ㅂB쒋ḱ冀ዅ䬓ㅚꩳᗯᨕ隀쬔漓鹿蜄椪໺չ恙耡쁵碰ܨ↡ㅆ⠎刻䠌笴ྸ⺐俄뗣蚤᪎녥賆〹퐖有얺ʌ꯱婀ⷻⳇ蚭ꗽ♴닲囹ゞ梬ꀺ耇麙쒁톬씂꘡᧊泮葅⼁䑕琶』옺ꂑ盚꡺覨羅껱阦匑䩥興酛\ude20\\ࡨீ衃ꄈꀃ샎ƪ挈㪀)쀍懲°௴萀鬀⁫䩳쀿艒磀꘸亂館聏ꐡ惇뗀むᲡ栨䀜ͳ⦌紥텛\udf94텳┚旫馬对Ზઅ쥦䩗쇂柉眱茔ଜ⥈얢開ḩ擅銕榑를얖✀ᬰⴰꟀܑ퀱䁆͜ව܀壊늍\udd32⃅⬢Ӏᝀ羕쎮륧䖛铴媭꾾፧菮鞆뇑穭驢捨芣\udb0a褑ᯬ಴ᢐ橑❥鹚Ԗ醙ꓛ゠᪑\uda54䣈耪柨⢀濋舆뀑뫌숓┷㯅㩝๏씶ȁ耐ᝈ\ud8a0堁\udc1d禱욄ໃ馚ꤿ얂沈躺껊ꊈㆋ䁧妊葐㓾껩慠툲를᤿ࢱ嬩没ꑞ鰮삙ᒥꡰๅ礗㰝慰ꘚ垤嶥噅穖ꀾ䗅锠ྀ㨠騀숍퀎ɒ݀㷅Ⴅ鈎蠼黶Ě൰ㅀⰁᏧ>電΢࢐绠䓈뀺Ⴕᐿ漹䚹䮗팚쥱襫ꚿ眥㸩妯쥏ㆂ阞利壅ꞔ䩝ㅥ坞寢鸶ક䶝՜镆躊⊈䥺ἒ砥쀪䛉ႈԞ븸䤖▰隨聚匀ꊰ䲃ᱟ젚神潅䙈㔃㩜앫ᗈ 5䕴䍠㢩蚨䃂坣馀ᬊﮙ⚆疬ⱪ鯠΂ྊ㎅ⲥ큫멱ꏊ苮蛪撫㹝锎唹占க湗芟렧闞嘒弲궕㥜问唽垴瞕捤\udfe7ᕢ阥妦翁䁕涖镽ࡶꏴ嶕弱륗ṟ镄앓ᝋᴈ窩奚쩖ᦻ吘锅忾댕㲛横ꔳᦜꈐ濜㬒㌆瘎硇민鉙弚臊刎萜KĪฑ映ⵅ⬯搬嘱己殥ⱕﱓ㕜픾댍宄趀佂\ud84b乧手摻ꂾം욂ᆲ뙚Ą挪Ủ㬀蕨ચ*懯♊ӂઊ溕쫸䫹忥恕셖蕗઄啑唙屆ꆠ織՝␅땡坛崕䀵璔⦞깰㕚媹侁૤湝텷╯쫻䇥쌖豚Ⱳ㔗閣塮昵쀔啗赥맏忼Х鿹耭餶Θീ㙵逅鸆鎦ꖑ᥵椥뚲ꩻṌ遲臭Ξ肞㕗씮障倭箥䋕ㅔ㕢핢퐶ᰑ⹵醪斒펌吴䓥恲骲ꦠᐇᨡ뛕堊艚褪겠䋍㾓䂺\ud8c6薚몢僄쌜蠜ㄈ앀Ҍ䈀⣅ꌘ澆斻楦妀۵鐂쌐ㆈ윣᪌稱垅푙䔪擻哾堵辇뉒啫䀂ꤴۼꉵ邇쪀հ﫞ꐁ箎赔쨇䀍胣Œ榠⧀钂㐁䥇y湵耴혦怏Ꮉ숹⊓魎ඎ栃\ud939娚洅鹤姠曃鑞噱ഹ뜄횗炩㨸༭慨ഢ䪂䂳᮲ി뒨꺫堂戜ꚃᨈፊㄦ쌙뵨其Åᔦꀪ饅ᔗ㠅免䖯嚊Ⅸᅅ⠀鑗⍱䃥ᙔ嵑炞ዥ岑甹呇剹瑵䕗⥃䀓䀝⯚ဵ貖뽒쥻ެ妕诲聇啦랿였턼떹ᬕ\uda8d䲋塀툀Რめ 栨૭ˤ坵亀ﬃ∀꾢耛Â௕礵\udb13吥႑㢔苘Ќ㊮뎸枔\udd64헼횱兌Չ蕉䑮䵦맷渚޼\uda22몣갎ࡎꃈ᭺릈ໃ࣒\uda2d熭ʜꭕ貎鈴竌〣酜룀Ԅხ茺䠶竸挟垱꧵猀岷䀣㖌푠Ӎꒁ䳘栀葄窂ڑ瓩韥<ټ夦騀ኋ쁅쪒ી⋴訁夊‧惨蓹ຈአ쪣ﲢ䀸삇ƫ檅똀Ἳ䁕郜砒ܹ叵ಔ뽘﹓赾헏᫣峙䇗湕਷趿ᡍ曅ꅘ撤쮰愙\udb4f⨲も⠅.쀊䁇隈ᴀ檂핐䧸퉓巪⠰ᇲ㑀倲瓹㛗䕘榱眃ⵘ籰➉䂀㌭⭖ə⸔⡜ꀺ詆룶迧陶⥐꼱碡氫詤或뢆쁤侨 㪨뀎慸゠ꕁψ끒垁떀䓹鍴⚬ॸ㖁쒨撐Β譮㕜腐ဪ谭胉뎘≀↸␃ᔨ芠뀦삠⿢겢㗈恨삄䖌⡤੉⤤倵갶䐇♄㝃⽃荊킫垳滀ܷꈄ獥㞡๳旍⨵舆魆浙뒜홳嚀霷뭑趐뜴効咥럊罙൷媛锥嫱達Ü鵴ꕨ뙀됦龺蓑×̴ೠᣑ惉퀅Ж⨶ɺꌌ髀뵗洇栕웲\udccb䄍꫟䕻⴦䩲\uddea⸀\udcb5ࠂ﨟⵵肷燮视껗堼딎ꁈᖹ멨㓈⩫屽깨ꊑ黚䞊静숔슍⣣᧊ᘲ㗍蜂\udcd6쀨耏㔼휨்묁볛浢죿똁\udf73揍켷礁ݻ축떂긋䋥ี䋗孃踋윶큪㔊꺇ﯪ걊엓擸濣澡꤫暉⨦䪡㜸ॏ댰㘃纡쀕逗ˮቀ㶐휀逮啘㚡ያ㪞琁牉蘩൬뜊ǋ狐岴筿ⴌ㘘೘僨ɷ稫礄셌ش➐咤颁ଈ赀⨨䛦娔샪誖幙瘀閗噛好敤Ķ嬀腭頂駑奕攵鞨ݙ䍥뙴㽛ᕚᷱ咃国䰭㸘ݜՂⶊꊨ貋曱癘꩙噐؇읢폛꒞ 将爫㈐ϙ͠㲚ࢁ㺍퀏㕪蟨髬쵢謂擠샱蘨Ұ躃৛춑䵌咔ퟱ笕煞䍏ᔹ핷䖬ѕ튇䔲寜Ⓐ묠♋ꀩ左莕퀠⫕≺⡋⠅ȈᎭ秖葤걟਎ꍗᔉ嫊֣ꨢ⠱ꐝ霔י䜀㶕갬쵿騞Ꮃ᭥㭵睧늦㠘횛ꄝ鍥❗﹝䃀㑀둨濈ᾣ‵洏\udad1尺ᴖ䍜ᝓ꺡㞡ැ⿥☣㠎〥‏¬ʲ렠◺ᨋ꠯嗙焯諤ꁔﶸ돊掺祕盳勝痂걗헙앧癙埅綐ɖ뛤╀쪩勁鰷癙㦠霨楏嵌깨㬫䪃䨿⪆횮ꂐጚꏋ㥉ᠣ陻⟬䓥༁乓怌癠Я烥藺诞㥤锂ꍉ篞胗秝ᵿ矼ን宍셶䰋Ⱦ峹毥〃빗戂䠈;冔忥녩㷖䝼ⵛ閁嘗劥辅싔ﲗ䕰ꍃ僮汝䤣헠蠗㫵\"๷눠贂倻饘즀貏潸ާි䜯ꋝ瓬䨵敝嗗쵫甄呏眕ꓶ뗞佻嵔퐷昽ᔥ痟섯嶡ϋ冒꺱챨ﯮ㚗邜ചァʠ冥㚏䁘娥㸒༢ᨅ촍Ȩ࿳崀肶蠌େ′槳矍뼶运୐ⴠ뙹톯淹Ⴔ﷜륎붏藌夰A䴀靵ⶎ牮ࠧ悠엔氁校ꃘ̢ɇꚀ\uda34ஓ헗큰ֻ條㮷觗뭁되\u0010㛭醪鿘ꝰ₂ﮏ뤉혀蕪屾䡻ꌪ㛕抡佣也娅\t᫳믎鼸靣⻿㨂䯎볧\u0007칟㥠㟳렠¹ˢ蝰᣷瑶폣坭럈䍗՟ꅷꯊ蟁ꡍ倂픊㴟ध䙁π弁者ᨆ삢ʍ鮪瀰ꔁꝎ호\ud8f5뫰쓛譮涺鴉젹垪鍶浪箂밳厮⛮嶇滬ကᱽፃ閆隃ඊ᠁怫溆\n撠櫛١쨨ᢒꃫ側覺䥺ꔈ⁼袬ꉡ滈Æﴻ낚ஷ遀婂మ葃싨栢⻶畠Аꄏ䋫த䎢ໝ\ude36䴃룖盘뷎㠄Ẓꍈ묗᝕絥薦«ಃ捀ᚂ搀΢Ԅ⽕ﮂ爃쀮Î˝辨놃刎喍瀵壁ध懬ٸ춺廡鸢莝뢨セ荶骸栳钄ﰍ뭨㾫룃蚸뮃쉼ㄴナ⪢僝쨑䓤ꆚঢ়齃ុ堽箝菣瘨耪釒⅘슏뱢裳淳룾釺⢃퀧⣂꣞擂뀞詣崛瑽톏䜽ἇ鯑ὄ쐼쵍퇜䍼㓴烨缏봗빪䌷儈崃佷킃뱵嘹孫੮箖䟧緢繮뵎ѷ퓚a뻸매㠛鸋旧諺압涞䚓隨趰㿯媀\ud807ⴘ얷䀶ǂ깟菀泉䏓࠭蚭쐾㶄볃꜑椴껽࿈㐰쨎눊ꭖ些랧텑빽ყ薕䍩茴㜰圎剩䆊급᪟レ㪭敠헮똍̃䑄軎婘脧곡꽙궑툓䄦葴띚䬫౥쎍읽᯴䭖Å̘䀨㇠쓏헴俑䪁ﴑ⡞趃ᄌ琣혆숾湸嶾穻툃爣땘䴆馑ᕪɢ݉蟎ށﺂ뀖ꃃ在㕾戍ꠇ⠼紾સ鱇㛄ᵸꏆ檯⏁蠊㣬傣ᎄ耖쉤㠰ﭮ䨎螕䅘৲賧龂䱩鬎↗䍒槱폝詆∉鲁割㱲ૐ⚣᭲㬓꣇皱䢶ばﺣ턐띵਷鯠࣐㟎ꊈ䰶\udbfb셂襙䓦됌㾜컸䧀జ懀놋䨔簅택̩ȋ齮㏶\ude31☃ꄾㄇꯣ䪃븵䃨賿鴘仵篟樎ꪘ똓杈\ud948ԩ⨄뀟ͺ芑ꮰሀ阗㐀徺涽啻Ζℴ倅땇䄮ໍႵೀ㓴倁ኊభ⃈솶カ艬褃텑쒳媩₤䴎湴렀㏆ᔭ你쑊⌀殮怼泅૞庀㕧궴ꡔ⬱䛞甊멙⪐镭刱ꋆ댂ၡ\u0005ࢰḅ▊⠅늨飠芽鋾川龆퀲譬痚쒤ꮗ뻱䬖⦁ꂊ슗ςỹ젲砌⪂捉砽⤠蘒黐嬎퐩슷晗䦖̸ꀃ땂䂕怮ظȔ뽀る\uda1fઞǬᩰᧃ℥눮灞ꂓ챜㗚旀崋ꘕ瀸ㄪ⽜⍰䲠蠆\udc07瀽裷ਐ⊮ρ⨢㰘ꎯ૴볰Ὁ⼍⍏༘⩓㔃꼆䞊狘Ϭਈᖐ씍醾쬶Ӫ㫰腎\udee6衜肈軨҈ꔄ좃㚕૶ꊺꮀ㳡增你욝\u0010Ų風ㅲ霚匼쫚件垤ٍᤶ\t鏤埑帐෈镏Ј璅䢹㢴펩ꐪ岢䂵웕淢貨쫹쪅薤⯚艀說ϩ』꺜膩汐ȍܒ䀢胠芡ཐ܀ⴃ鐎擾襰赙㎿佭봃킏氼ꢰ䲺誀㎓淚뤻ဒꋐ㣾빌纏伅㞾噌嗒腁ᓳよ棅㦌⥶滠┻퀳佷䎠㩓䜈ꔧｎ卅퇥㩜ᓘ蕎圍尩匍섷˜╓듣ꀭ卽쌶rፓ튒伍㰛可䨯״諰뽋꼇퓬덐ίྸఀ촁࠺肃\"˺⻀Ộ밍푼ჳ份㷂⼈쭏ࢊ∼炒ↄጢݽഢ倮耀箨苊⪢惎炎屮Ѳ螷뜹ꒀꌰ㎍c㐺㘳룏顗捵尿㫜⟓Ꮠﴹ覝ࣸↇ㞾椊킚ೡ梵씘薚遞하ᚉ疲ꚜꈝ洙䊨뗆ꔀ⽬삑쫙刜銠좀瀂べᚤ茴Ğ燱隡ጺ鞔揮Ꮌ媶ꦩ拀쀭㫜팳⠰댼쉻㍯ꈽ⌀ᜳ⟎ﴻ쳧䢡䳤쾊コ텏傫ᓸ뎲쌽픬㋍ꔾ鰂덙䴫ぜળ\udfa3곅瀡ū㭜ᥓ뫌䐅員돆쿕㙬ᛌ묵泼ꁯ䠯৴닰㽉꼋퓺僎츟Ԅ㠱棄䀀Ꞿr莌඀⻀㗪Ⰾ猌쾇㠢⫓戠윽∐袣픝氱뚀祧ꮧ뽣䂪词㏮톢䰈㾀ᳳ்⼸㖪夼󍊳戃휽폾恴˜尻嘃閩蠇䩑鯜첎뿛늋궙햲ꀘ茚㣆ࠝ䲺ꉫ\\Ş鲠\uda47㠆爒쀞쭴嫦祥蓍ꐱ擆䏰豒㓀톣㐗뙭㏀쀵쀞ἀ숱꓎鱰質ˠૐ㋍娃쀩塐㞟㧠⢾㴀猶逽촅㶒\uda32ﳍ蔵䤐덑䷤脴ᢳ퐀㚴덚䋋㼬✊䮨⁸௽ফ㹜ᅓ뀭༏˅卢\u001b㍔꠮㔾苸ⳏංﭓ뛏퓣도ⷴ㺼ᐐ냀氍胖쉢๴┠开适ﲦ싄뉠좌褮㬜鋪䬓䋶倶陋舄\ud801᳻௑챭㐢㿰塚ᢅㆮ\u0013䉜꧂ᨨ䧎꒮⨑⻳ᦒ껃䇒\udce4뢶譞⳸뼪ᾋ⻂쨲⺭猟䳚䷴ḠⒻ퐟しⶤ뭲攮퓒0蛸Ṝ憈䅹嫭䚮뙉ꭕ晦襨Ტᆐ⨿ળϠೠ㎀訂鰈퀌媧ϱ襀ៀ凥갅:栈耄뚿抙훕뽒啤츛鵂蓐祸팰訝㎦饷崘㵎倆䨏驋ወ͙䞴\ud9f3ꚣ㌾耆桪\uda38克Ŏ㼿ꋤ렯쾅㟍믳㢸わ勄돰ῼ쭋耬攼针஝⻥㄂ᫌ삲哜଺켌뒂\ud8cb畏苳厖컌뜼ඳ砭田௽䳌릛暀噣퐃怷訩썔฻뜰ᚂ㹮밈뗝퐰킆皫䭰倇꫒퍬ⵇ㺴䈢岌躗嫠৐㝚駌⩬⨙裚Ǟꦢ㙨⦣ᢇ鳘㚬꾲맊벯쀠ꯂ궨뢂녚ꫮ榥굪낷ຫ閯ꠏꫴ\ude988㩮ণԂౠ涤\uda7a얲蓼ۚ䡑䊯٨ϡ⚰Ƞ钂蠎萌胞旈᠀ﮁ庍ᙶ˖製竽ኮ濛浘\udaca눑齭하\ude34ꚹ仑隣뀝永䃠㼒눥俁\udf26櫝꽝ꎲ㠸ᔮ뼻娤匢컕枘᱓캬撴铴귋㐂וֹ\udb20諾틔䐅佀뱔쇈䌯ꢶ᫲ᨨ⹆뤲㌯嬻苧叶츐뗐쫋͏伍㾿뉴Δ⦈ៀ瀃∃鐔ရ̴ਈྊ\ud801ᚳۇ瀸ρ뢸\udb78䘃↴殜ⴵТᔹᰪⲤ鳳防㩰農詋ꈗ邺\ud926譄殺Ⴏ\udeb8﫳깖Ǻ剛㫻팚⺢낺끬룭氙될㠸ꐫ\udb08ެⲉÃ㸩ꊶ벖㐻踦↪扊깨鳫\uda3eꢱ䀣戨ர⠠瀡삆股ഴꈃ䨊\u001f곹\ud8e3嘝홌镛⭎嚛ꙁ벪婭솵ᛘ1漡뮒\uda1bເ憸勶ᯜ츿㜖\ud932\udabc䛴厤洺돼촯틗꬝⼫㒱ཋ랹䂿틐殃Ⲇ맆\udc6f費웭烦콌뫔\udccbর䋏卢沦뺼ஃ\ude66ꌜာƴຄી촂䞖囷䂚汱儖\ude00䍬趷ᛑ魫䲙릴\udb1aᐪ␏ꈋ멭ɰ迊닌定銬⨵ૢ髴½袨\udce7ᖿ耩寥溩쵛ﮁ햱瀃孁淗㨖\udd28榾໶ꏺ濹躠୳獬ᢲ\"嬲㬥뾲돮楮鮧∟ڦ莖쾾嬨霬㶶蔚䴪ܨ⻕䱊్疘苕Ꮂꊮᾝ⹪\ud98f彩뤦亰ᥖᚄ퀯寀삪쌀଀飸♂濃ꦹ厊塯ᒾ匥ꬡ䰭땒\uddab㔯⒨裸ß축椰ۛ괭톽뛃ᮻ洌辶쬛䝯놺盢௧潷ॶ籬悷盜歂淛㓶꽯伏搠䋧脠ཐ⹁⼁叢蠲⁫ː೶쀉ﰥ묽芷㴎윋꼭䉚娍↫泻꙳㞛ઁ䊞蠳毻쉎Ӿ븫뇊⢃삲뺐⊻附ᣪ껺뮈궨ಊ졛彌⺾廅묚酛땪휡࣎\udead聴ꒌ铆酀嬩튖궰삒ꀾ쓐蠊࠼鷺ˁԺ숁籱䃁뢝⯺슩嫬視뙮뮩坫ບˡʫᮿ褂æᛵྴ⍃ᓷᡧ졣湏⒬幠໬ᓔݼ쳚뛮틛鋍醳䣿쏻뇪㭭肷뛳ᮇ湫㱶\udd70凯ֵ웬笑꿇뵶퓋ⵍ悼黇厩벚줋폂戍騄셰΢ะ∓׎ᨌﮄẏ宯ࢬࠇ倁聵전߈ᷗ닲ﵫ鮪ⲩ譹۹ꦋ⟲렽ꄊᜱ䍖眹韯徻维÷낁读㓬ꊰ뻝⡢᳭डᚲ䁸퐛珂頌᳥믮캻ఇ∇벷ꠘ聐ᷪ藅\uda0e꨺ꤨ誉沀驀氃냶㪬䆙閐Ⰳ䌑껢褫晿뎮읛郗權註䀝㘀白写䎍閅昲姖넥歀卮㮼⸳묨ẻ렬﮻表菩臃䯿슃臭服箪찝럒釯锶盵北泐烔\udd07ﱭ➳苳ދ⴦닶﬇繖挨퐅兟$獠ៀ﷋뀺닎ίநꀈⰗș駟諗덚찻꼯俪⁈嘌ŕ鐪ྊ땚戓਄f蝺ꄙ鳩謠▾脑ᵄ綀ే쑰釂雕챧霾튆입Ἔ粀᛫ꐪ༾溻잢ﯴ汴ꓶ⃎␂퀦쨩ꏕ嚩鮬ຠ\udebb〩䏬૞蜃鐃퐍摵ᙟˁ\uda5a濮休ﻒ᳊놹嗰᮫ౡ㐢ꯇ춨ߒఀ㱛ꈌ鎢鉮⊍끪엳䚬暦訅䞈ᶲᇎ딜紎臑꯳읻냒샫①˭ᮞ깴灁흋䐞䂷퇠欃ᰠ륁챻䛍잶㇐氰笚퓇ମ⚺⛓뎫⽏ந埑洂戉蠕邼谺㻀構퐃鶫秼ถਈ曙쟵뜩땱ޏ頏ㆠ譻炯逫○ત疉狧姌넧꒜숎䧥➊͒等ᘟ쾰\udcdf✂鴊焙삀犟뜿ꆭ䜊학裐犄盎뢎腸捃ꨫÈ㒉澚蔨䪃ଟ䶃﯌\ud924甮䩇첝戺짧䗁鯛੊ꀺ뤝끉퀄Ǔ蝀ȉꊜ合櫩썺읊猶犜ᆸ뛽꯰목௚ꧾ߁稞䚝놽고쟑絁즳嚟༏䇌殂潌磩캜䦻瀬磲笒\ud868㧠響鰊徢耂箨Ұ⢇实斃말ほ齼蔙쫓왮벴䮚똊襁᧫月筻遧횰譨ꏛà웪餫㊐齍㣐㣧鎝뇗᳘ꘉ쐧Ā嫉Ⱆគ߮烙ﳊோ눇㾭熆₎肢ʾ̇䍔棶뫦觤㚈蹃쭮쉚쀹䁚;ᚂ鏥蠢聄Մ톨䌧髯칼繞ㅋ鹒㈪㹪ᲟИ宭䊄ീẀ纱樼⠳ᑕ켋ӕᜪ耄ᴵཤ㑲멌瀀种뮈嗊淖ꧧ࿏鹿턼\udb02츪絹싙꭭镪퇦Ꜵ浭뮩쯧瞧빸槀殟鼆뷹\ud9a7뾜婺㇔殉罩쉫≯腾⛌쭺슈Ƀ룀瑡ᄎ〢聨ꊃᦲ뤕륾ﰭ怞尨ץ嬏뼘煀埛̅燂聅寗藤珧ῖ뛂뾼炮怱㦜≒鹠℮鰢릏樧㨦⋞귎炥㩝얡鞘茙稠⦗ᖟ艷份⢽솹猸瀃祱㗟鞆͍琕졗狨뗘霋װ탬ፀ䱩퀴뻬耨賥鑨Ḩ쑌\udaf6ⵡ昑춲ᔐ怐혎줪೰▅ﻌ类旲䞶ڤ碹馯骭⡮砵⍞靡ퟵ歽窒㍟ﵶᗠ㜜ʳ뻎퉗択礷\ud9f1岔묩Ｗꕶﳇ믩州珼辞⢶厯鳴縞ｇ從驻爅圼滐絩퀗ɯ\uddb2黌읎鴵纼☠솸\ud802擔⫾⅙茊⠱휂⠃奀휯弍碎ﯗ齜덱邏ퟬ\uddfd眵휷ᅝႇ췃삲ᷖ뗂헰匘䢾⨊쫖\u001d犚㦀狻䮭⾢ꢞ⮘薅蔢ꊋꍱழ牐ͣ纠⸷ᰃ퟼巓竭쉂賜筻띬\ude05笵ଡ଼\udcc1⦝勊⇖㞙眹〬㏔짮湆黦匚␁疵㊯뜊꺨醲蜁얥ὸ⃽즬դֲᾬ쀅搄颳鵼ቍ싧홟鍱ꉴ瘓澑ꎪ伧们낾꬝춒ꖠࢷߝԵ櫥὞瞚ᙞ궹ং뜝ᴫ稂셗ꫜ遼槆랡꾚玭쀗㚟Ÿ淨ᜍ徧뼱㤗∆靳胍õވ⿥ᚂꀐ࣓슟㵚︗⭝炵矌傤릺鼨둅弌⨚뛪蔚ᬊ칸\udf43⌽\udcf7⽴뷥̠黳柅폗\uda2cꂆ퀞诿䴱爈篾槟쪋﵌⣙芋묽臖箍㼀の쪸⥀ᱺ夏렎ꂡ쏠Ű㝀ᥡ᠁ꦑ㝳鶯略핔卾몂\ud95aǻ\udd12\uda80씂茅ꀸム⌣ം㨠뀣삀ꄌ㣨⊃ລจ乣䖇䈻㺃โႤ퐣麗鰎萂䧀ǂ·嚬\udbb6暋隘澾蹪\ud9e7韜뮹ⷑ᮷\udcad묭\udcf2\udac1况ꧢ랊츱끩ﾫ걬ಾ䇙坚\udf20륩띮핿㋽坩狩큩噁祔삔Ǹአ䢂薧욂۫쌠蔈肉ȝ輎㰠迼ለꠣꂄ숤♸⊄㯲匿邆숵ࢨ℄㟈愾䙶菲휱鵰녊䝷茺㱱체䚑ꪮ녨㲡䰏썱衏䞠跎岏䮂ꐔꏓ*㶨욦㏮怆쏕蜁X\ud808偂\ud8f3Ȝࢊĸ￦ஏ渿谁㯞㾩䟣﬈脽꓋ꄇ蠛㰈ھ팗⾶ᵭ⨣郅ꉤꩢጩ覢碭ਁ䃲⏖鷄机ꗋꨣ床䅟ʒੰ㈠ᬃ\ud900蠔K͡෢\udbe6晝㖾ﻥ鞘豯灣훷ꂍ善퀛鸉綹\ud85cₛ췔垆겛醕秷唞╿蛪ݵᴪ簱ꏉ࿜였率䜁竽蕟ỷẔ쉻ᔽ\uda75口\udbac᷌睓伃뀩➔çꉀ⠠\ude9e萍肘価繀᢯뮜ₘ᷒ퟏ⺇穦상謩ࣔ鳧귢ꎦ臞톈☢뚴퀗⡧༖蜚㜹咾䯽⾌뼲頋촞⣃᝴꾘徊큹泯㝿᪑퉗솊踴㞊ﴘ⸐璍㉛頴荹譁໫䉮舅헔⮪⦈Ꭿᵁ〉ꀫ㔐笸൰ᇖ⠳瞧⾌齲ﯰ泱ӗ榒\uda37嫓栊膹惃ﳸ௽迀뺂ᠰႽ䋵쀾㷂쨈ꬽ⋼ࠧ辺ⱀ焓섙馯⯏㍗\udf2a歹잻킛！闯퀙㼿箫칏\udd1d請퇱垅㱱돹ﾟ铻槈ᜎ鲀ﭓຩ〆쮷酈̢ੈ⏠阖㔝嘚Ἵ㼀迓ￏ䌽˿Ȣ࠽乨޻퓏㠠쳳䈩ῄ⏴㿰謾傌돭ࠗ버쨈㞿蓺싺༻㺙뱢⥲\udac2㤊軩袜⋲ṠΨ⫙쨄梷ꠓҪᠶ綾ẘ䘐䂎︀Ꮍ䀌잇켠ż﫯혼˵ȡἠ봠蘋ﻯꃃ룰䈴⿇뻂ﱻﰯ⋺쟎謨뿂缲鿻㦡汘\uda9bꭦ胠ﮍ竄䰊\ud9c1쫇䷈૬㛒阂뢈䄈Â짓⃌録뒪䬧⠇㉜즄嫮뮺黨穾࢞鱠䁚㹮࠳鮾桨⟦\udf99᧭ざṐ磁ꈞ瀃⇯怲醪䚉Ḥ暑ꄃ椗⑽肶៪쁡掅옖顕\udeab薯ݸ洂︲耀乐堳勍⬷賗䀤췓㓅匈暑Ⓧ脹뷍鏨띬嫁븒Ằ\uda04耶㫣幺ର᷒䔁縤䀘퉌Πࣸᄨ肴뀏腅쩑埻⦈㪀蜟㖊䁰栥뤚᭽熠⚄騫ꪩꉀ㦚⻕೷䚊요뺜⬁ꪀ⎀흩ꠂ䐡盐⌢઒은貒瘠崃감ۧ䕛ʹ鰓ﮆ妜壨བ敓衊ᰯ䛐䂲计⭜ᇈ✢斎爂†Ͻ\uda52憫혡䀀䀑ꊑ꿷ﱨᲡϳ觨㽻较ﮚ␿薣䏺娽胳öʰ⤿⣁蠋낸Ȱ䩠ࠨ鴨ಣ塱攘徳á父ౄὢ阅逐\u0000";
+            window.__GITBOOK_INITIAL_STATE__ = "㞂⁦ॠ上惎Ű㶬䀮净ค〱밃퀆쀘肪ɸŠڀ೤䥀렍‣ᐁ篐ᛋ耹璠ဦ;Ѱ쒀ྤꄥⰱ킂䀈쀕谼ࡀװ͂༬ᰈ态〈Ᵽ㋕ꄀ舴쐸ՠ聙숙⃉\ud829ꅳဂ瀃댐̰İ쐀珐壈₄䮆䒤³톗鞚孚\ud9d8Ċ全Ũ뀠Èƨʻခ⤡냆鋔썵荒⧘䃏ᐁ䬥ݩ䀃飤䋰\ud841蕨ψ̫됀\ud803姪풰Ί遳✜¨ȸ쌼ꇘ셀\u0003쭏䀀כֿ碼ェ苏朄\u0001䀐₁샠﬙ᚂ̦ꀂ⃆ଅ였퓱邨瑆㌝跃䑫≉⨆䠃૵႒ᶞ샦虅鱂ᙻᤲ⨆檴㨽纐쑦゙䵦諑䄥큜ଯ䬇憳\ud89c訕᪃䖦威㖾䰡៖쐒⥴Ꙅඕ줻૨稉蠱旀↨娮㴀ୂ没삣朳肊㎢䄠ၸ缠䋆燂⇈웓嵚鈅閴멽䆰푮㒛䳦୥ꫂ웁쑀琐㎙⒵藨砵꒡\u0005鉃ﲴ朤Ḓ靤瓀灐㰵΅仨˱슃䠄⢾庮䯂枀콈퓨沸蝧낌堀䵧賋虽ꡀ䜂ᇢ僠ݗ→柖ꏑἁᲅ宐ហ䝧鋡ᴺⓊൽႥ雵䨌Ἵ˧ꄎ珈௑멪૰焠\udb91ꋀ琀ɀ挸ѱ蠸㨦豩栻᪃́㎆憐һ࿲壠ᰏ铵ꁇ㎄瞠Q撑軨Vᰔ胘塮迳㧔묑⑩\uda11횂妈ᇖ䅧舁눸掊脜铒რᦹ朮辨瑤謃㤟䒀扙ᩏ㙣ﳬ捖\ud85f㄁膹⸅菀И若ᤛ隠爍蘀ᡠ垗ꞁ쉐႐㴂쁢̣壃᠚䛤候Ͳ킠␗埸ᆮ金堄♰䀤䔓䐚鉚䌝﹧褀\ud836峟냰ဨᢨ낉嬃技蔙ᩑ6㉚菭鯀䃎༄Ҍ\u0002亇Ό溂꜃䑼᠆䲛뚣䰳ⳍ懊侰ᵈ᠞쇑ꑑ篅ᷚ艀堥㹠䄎ᤖۡ與琔厇Ƈဖ㠗◜㍁囵ꯂ騒빙ۅ癯ధ\udabbක虱䀬ஐᄗ䨅ꪜ\u0006➠㈴钁襌䑑皆릞澘ᙐⴘ屉詢Ꭴ匒ꄤ灜綢␮網흰둅읨極볝ᓩ䠥㐒쁐最馁艩숁笆頕놀塲g梴๡ˀႄ℠堒ᤉ欄꼨è㘴텨岰᱑㢐тඇꄈᴐ萺ၔ준뢣偊㛧을샃ꝡˏ⑂ऄ↰簞\u0001䦒刖醠ᠦᖄ縈䘐篒฀\ud880﷉䅨㴑₁湗麁觑溇ὓᩐ嵏ꂐ䧥꫁⠞¯﹉꾫뼣⯳ꁱἫ㢯湁석턕Ꮑ੢ཀ꾨⊾줘ꅟ≀Ĩ꾨ຈ攊՟劉ȟ阅шⰅ灤膑큃ꔊ萕ᦊ≲쀲͠~ហ耀⼴螘㠀Ɠ⁊䌡顩䆈思䣄㚃ᡰ㪓衔✀Ԙ瀌و㠊ㆀ抃聰ు퀱ເ⣢覠献嗨㠏⥨夈謇䒆⢒Ռ\udd8d㉪〆楝㙡쳖⽧蒑\ud825⅔ꪍ厪憀も㖁ⶃ옖ᥲꡕ誢҈焙⁘堊\ud937Ĥᐓ逻⎁턈䩍⎩䒄꒔ꉇ鈳ೡ갻δ쀂ۊ턠ꤕኩᇔ薆⺊࢑쮴놫旆娘묝ᴆ녺ᐂꦞй蜈躟普㧛↰䨃郠㔅ᜲ첒쮨暠Ⰱ⧈嵹鄧摲؃浫᧠虉퐴薆ꎚᜊ涭➅됥快ѐ迨ꈬ䆈ㄝ䡤抆펽ใ젿◑ꀘ藀䂨ᘉhᶬ췒栁怨ˡል胬鶔@Ռu᠆à℃협᭦靲瀘Έ瘏ƀ㬅᠔䋢ꅱഡꐨ욐렞ب吰ឤ㬃ꃰ㪗勉ᄡ갌唀녝ࠪꤿᅨ䲝錽鹈⥅⒥钊镓舫䟅暓骸⭅琾往瓟₡䋘彁刌䘨焎∤Ⲏ૽ᐬಈ騂ᡔ屣ᶳ눜线ᒵ⤆䢴≂㈱ᛕ聺Πᥞш龜ↈ뢌僒ⱄドᵉ첐օ㄀茔䇉ጤ㾑聏⣖볓囵쵶懜邲⃚뭚鯨㄁疾醷ꁂᤛ꧜괖셨㠋탰ą쐺써艐你ᕛ昔 哤厊楏⤂坔耜ā脿솝瘎疤鎗繍嵚ꍶ哩戀ⴛ荹\ude95ᅔ쪂肶಄ᒨ겔鱳蕰渽쑸⼝澍ꦪ↫봦ꛒ훻佚\udd53歴䤕⇄ᢁ\uda21喬蠱ȅ蟈ኞ抺뤖쀨䑂䯆脪䂗䭁堅쐻쪎鴒䃮붡ۍꞀ똏䛷鵊㧡覍혍ȗ卶ᮨँ㏅꠷僢汭蓌镟卣 䇲≏ƈ전ꐥ鯶屫蝰ḓ썸Ἃ଀贐㙆郦숁䙬\udf5a芌ဌ郈ퟓ➬䦛쳄웅괘ఘ䀅ⱐ少⏐灨錂䮁옝埩圅攁⠵颣쫞䰾쐉䄨륺鏁ꁎ꺘溰\u0000㨲۫ᖒ멖쫹夫冚쿓䤅᧺谇讂\uda2c慝ݦࠍÝ慡ꉴᩆ攀ᮐ굕밃垓㵜欨᦮녜屗姫椆̭뀇膆첅ᯣ溮팩딀曫塛\udd78媔劌蠶훟睬䠦뷌嫜\udd8e〘ㅩⰮ묻懅뜶䴬긻導쌃鰌逾\ud8daﮓ盯䷻묶 ᜈἤȜ䇖죜﬌\udbef䡟뜏嫨⑇닅悰ꈶ앜ꜥ擂ᖪ牖潂潈【ⴒ霉ܼか퐖᎞蓋鄓쀈䴠︓뉐意녶ꗱ挬‥ሒ潗̀尚⁀ꇙ젆邭ൣ馫꿰肀쯎乘ႛ⁆路剜ᵊ틢휸\ud9c2髗㠇律괏㓐㺼㟆ꗛগ潥䞠娹鴖玹甖珃뮖둣緹븎ࠔ㮇䣢쇓玻Ⅶြݡ㛞к萎㳀䈂쁱顦愄⌡顈ꔁ顒䤤ᵣ鬰툙鄠ଈ⢭࢑顠锁禋ॄ제霧냥\udd12㏵\ud8a3␻偃ሌ⩑鶞ɧ鶖崓뻄鸀࿒穀䮧ħ鹴鸺ቺ䯝酝ꋍ玮ෝ〬짪絻蝷ᴽ쉕<ᤰ揄䂿쟳㳎๹綅胿풁鞕秗鍹랗秷郹辁ﵟ컸￑盧䇸逵ɐ≕粰㗸〽錄范뾗刺逄〸֐㰄끋Π䌃恙̐劃做舟隂뀳֐⊄頰葘⛉逭봸㜄ꡆ蓨屼藍ᇇ펠\ud853\ud87b颁롖䄤㾅ј䐅䓑쑒䖤噅䖔啅푓䖴十⨓铰ᢁ풆Ƃ찼Ὁ\udc5d\uda3c발붓쀐퀓゠ឩ䷆嶇垠ꐏ颔ᜱ㘆Ҽᗅ䖄䱘㰔5웂ꏊ\udb8d瑝싽쑩젏შ䛨⸘䆄ۨ爎쀾飠ۨ钘遲溘Ꮁ᜘䵉轱꠆۩휈쁐ࢢЇ䇬Ṡn鐄纆䃹ۨ暕ၠĄ潙ᄒ݁ሓ闂⯁쏛嶢⛐᰼ⓐ༑棁⌓폁溞駩庚䀾诨纝ㄳǑ⨘Ჭ\uda21햊슮訢셎쌺锱䪁㷽좑奅썍ꁮ㉰趍慠ɤ䀂\n\u0019怕鳼푽叐膯핽ꥇ㷜䁱ࠉꤪ蜑ࠑ専䑂ᡍ腛턹ቯ什둃䕹噢㗋끤ᴩ鉆㫽⺎겺饰᳔ቌ\udc12鏅㱦嘒쿝綳邁ᄤ᎑㟄턣ሲଓᎈ༒र㱔䁭捍尝쇴⤪鉀ဓ蝍䇷쒐⭌቉嶓Ꙓ㢹⬼礥맹⼁Եዉ䔒ꪖ䕱ʵ¹ᛀ뎗ᇅ㜓┪ᤠ怎⁠ᘠ렍ⅾ㏁锠ቩ㵓勞µ㲐ﳍ錦䨒晏㱤ᄸǾர\ud80aē趨တ聤଀玂ᐐ\u0000弓ˑ㤂킁Ĉ³气ᄓ鬑ጯ'埌믜\udc03鶡Ə賬卑䅌섁痒췢쩀蓞촜쒸ꌅ췟噌숎Ꮃ\udf60\udc46솨ࡲ똺ㅣḱጙㅋ迨츲ꃛ⹁य़槵鸡љᇐ\u0001됢Ⱀ䚊斡⻤琁᎗ュ⠗銷㙅ꤗ༩漮㌣臲鼬たⷲ錃᳀⼠ŵ篖ᡠላ⨀\udd60ᙀꡥ죲쐁଎䅩\uda83Īູꪅ쇛霁읐肣Ѱ㘏䁁什阎궈ᇰॸीᰖᢽ⹚䔰꜆燶迀ဏ遚艰퀁ӑ뗍 ꓌᜗ᦏⱴ怙碣ݨ´݁⠈賖ἁ읞セ펨츖䔓ᄙ곖Ǿแ㶌偭ᯌ뒾䭱ᩝ嚂贌ꩰ堊犹ჩ퉄\u0000આ쩴뻋チ৘䈊〩䜊䀇譶賁⮛鏋谑గꂸꜘꊪぢꨱӐ痱ก銵⩇䝁Ⴈ\udcb8ꨤ損ꣅᬪ贼륲뼫뷓泆勊Ⱀ쒮钄뒭Ⴃ฀\ud810焦儡顟ⷐᢡ訑⁺끬溗馘䴵き悙嫍酚끴喇䃨豌⚬뎍㰍ℒഠ貎셪輁葋䑍ᅅ\udc93ꀦ갠\uda88삕叁⤁䬌ꈀ\ud81e∏㙝⺎蓃ୁ鬃拤ຬᓎ鉁㝩࠙㋂ࡪꉊƆ馄እ樃♘蝓솞ᣨ찆컩ఁ᭭儠溞膊ഀㆭƦ⛩渎ࢇᖠ㘋䃿ႀ窹–ᑠ堘ꆺᲁฎ‮਀툛郘ᚠ턘ꅶѱ뤕ᆡ聺ꠥ甂*杌洒뻜ﳈᖨᢁ帙磢ᐐ쵕⒔ĖǶ짘܄녲ॊ햪5ꨰ堄鄶컁ᆎ葶艱빊ǮꡙⰊ煺ݪﰾ⌐ஐ谎궔묁鶕ꯢ뇒䬗餫膫顑↭턠냐⑛྘됁쇤녋訢䂺㢚嬓\ud8b4យຏn錱霞⌫謺䤁檖ꋁ玡\uda59啩㮞쩯⭁䤺㔒۝蠎₳幅殸魯䴠䇔蝀皼喏詘订묾ꓔꜺꬢᯐ࢕ﮬv霜酓Ꭰ钘䄟ൡꊼ꫅븫▸㡥깚ᖩ婕뵺ퟂ꫻ફધ⦊ꚓ䞩﷠ഀ좢誨Ꚋဎ記뇰颥謒ഁ㚊匪힥⨷늪뷋譪둺斬ὢ怖맻ኀ㟍롽鳝暺쀄Ẅ誤ꫠᦄ澠ﰧ\udefb⢰좟ꗻᢹ識뱼ᰛטּ댪㡇ኸᄹ鈃萴\ud985萍⃸ॠ昑㣀ु턘䀆᧸⟉䡲୪阅肤⥀ꐸ膹߰瀉bᎠ⸛酁ᛡ式ᐐ鐏䁠隡턔ဠء먑⃘ඁ垿뫓ꐒ䊯〩萀䅽蠌ƒ㑴ᵙ퇌䖕\uded4봡詠ᄠᜇÃ렭Ω㵉記ᰄ䘀琘ⷨƻಘꐜ翺鶅老Ề匄뀱脁踥匫递ᜄ℆䍻⮚롙刱ᎆℓ謂ʾ㒝䱴퉴Ȅ귟ü澔鵋臤夐ɮ쁔䕄찬㬒਱ቔ薦ㄥ瑀ႁ䁰刺⻁ꮘ仲졲礧賛鬳㈫䮰쀎޳镦飋ꑂꨓ➒ᶱ쳚칏椧酁䯇ρ䒪ᮝ\udc2d䄶㈹㈸홮6拨‛晳\ud911嬀ꂣԡ䄅₱↨줇豀ថ껆禌퓜鏾㠠줊脀Ђ搆ㄱ疆䩰됁뒵䳼뇊庙쩌뻁췂쭇뛄粠雴ꢖ貥쩐έ칓솼뺫沷䩂忋ʢᑂ꜖䆲熧ሪ辪峢ꉛ쳬ಫ辭⨒띨늸埏젆뤚ꮬ싺な嚥쥖઼址禫旍꨺꿌몧꫐ྪڤꑪ욬ꀦ멪᫖隁㓓㭤伩寃ᨲጡ蚾飵궀庇᥍ᥪꚻ㭦ꛁ섺ᇱ萟更ᮐ荲\ud8ab덫뚾镺懇ສㆎ듫⾤娼뫪뀖ꬷሠ⩤Ļ녍䯹퇪뺡댱兟虀膧⡁ꊴ송!몥ͦ᫡ꄚ렉ᨳꇹ╝ᬱ묛熿ᮞႛౄ髉꫆⦽䤎ˠ！쇚ᒜ툖ꄒఁ砜耸΀ᦻꁄˠ\ud809ǹ颡ֻ鶅ꮋ䕡⯅戭㰏䅞ؠĎ쁢ā풖蓜㰓햠Ⴋ芌䄧媐ཚ쀛\ud8db搆㇍뫤궡둭ꀐ꣄뫀᧛ᴕ桁㙜쮯棱彗綻녓꜁έ홃뢥쎡ꤽ렏䃋溄꣘㻀혏흢\uda3b掶巣뱱쭹㬞汻㎮퟿꼺꺄灉飡磤먽벺\udb34၆餡捙잻㿓㚮멒បㆽᶕ춡ŀ淹垎췐篜᡺ឳ셽ɺꞤī虻엏仿ꈷ鞸왌ꕯ軪\uda77㰏⟰쨰쩢ꚰ㿻劺뻷ό緷숟בֿ漁챭撴᫇欰쇆鱥웜猱⸫옳埇ﱰ❽Ⰰ䉣믂旷胺☬⸦⟞뢧ᆕ♙嵊됓➲翺峠Ꝯ䢧⿔꟱⏎ᾚꞦㄠꚚ殀婤㷚玧呜㕺朁響₆礠䙱풐쉦袳룉䩠ል耜ᴑДᆎŷ鸖▛\ud8ab楿둛﬚熍諦껦쨁㨊ﳏ雤ꂁᒹ䫲鑻풳䫙矊ᵩ쮌몌첻셡請誚雬믯襸쬙緊됕鞷嶗ॠ쮹砫䊿隃し元埏쟏潲嘕沸散⩙茞噕紆꾨鹏꼫聧埆䵌᪬㒝墠ꯚ령起꯺끫蚧ņ궼⎲쁖ꇏ깴笖뉷≅樓絪鍯웇䰀퍗죚ᮕ㍽ⷎ꟔꺼᧳翗୥뙀㘕ᷪꭣ嵫濪Ʃ뜳ꖷ䆼᩹䮷ꆤš랡ᬺᤚ蝭᮱뺁풊⇻扶ꝸ鬼ᒛ즲魈᪛榾鬙릛妽鬹뮛禿鯏簁⽼嚱bཀ腸ȁ祇觤䐲죰\udab5뿶됗媿惚罬ཌྷ눏ⶥ\uda01ᛛꢝ녰嶥࿝봎붿ᑽ걬ﶷ࿰莴㮈᣷趘壱㯨㰔⾸כּ磧輼ᑟ蓥뽄⮢亴ἵブ⽜汄컁⛅髝ᥔ曕齘ꉫ乥\udab6᫞第쿿곎笗뫎볣筓폳㾳糸鈔깶瓕꧵ꧪⴲ穙叀\ud831ᐵƖ疺淊琓଴뾡앃뢱龺㥐聲걀歏㵋䉒؟ↁ駀끤䯝只껐尪චᦃ氙郉滄ś髜Ё뜭릠㞠ⳓↅධᜀ標垎蘌㊤ጌ填쀶ᡰ쮆㰳耄挠℘裀䁢【Ҍꑣ⌹ᠨ쥆封冚谴潀ⴘ䘆㈱衝ⱆᝀ托쨮똵讣谬ₗ戃룙⸳龍蛡Ɍ뭥찦ᄷ쮌䲊⒛闔쫩㚫餡櫯\udd7a롋覮┳玫崪滗䌂痛깩ѩ鞼﫯ᨁ뢇䡮\udd35᮸\udd06氳纨췜暾抙괼景恹鮌酦䜰鼊쵻躞ᘂ✒聝䀒蝄킛̮ూ氄邔憺ఠ㨣ᐔ聧Έ鈈࠳릆싮뜶\udd46荠䞚怙ᙚѼᝑ鸇\ud878袂䅴伆祚႕ⶄ铺㈀뀈䀐匃虼馦⼀耶Ԝᰃﳌ⁊ˠὕ䄎ዐ褺邗䖖耀Ϗ〶\u0000ྈᅷ冺ਖ਼⺍핰ꢒ酬᪹磬ؘ溲䘒у副❙뫀袛ꄅ䲐⓶ཱུ↪鋘ꅌ㩠ᦍ혛燐\udd48巆ᬈÁᷳ姫봎K膄廃珏鸍\uda06ᐌ 脄ௐ䄓髒ᄚ鈟轔⸝袡꩝຤㊉먒≑፴㑄㈦裦⨢큊䢼菢㸐夓쪅᠒ꌀ↪ꘕ쉎ᝆꌢ눯䬰ľ鄊⬢ᐨ셉඀숷‽嚴玔感譋ꉵଡ଼먧钁ꗘ娡‑瀬ꅠ⎥\ude84ᢛꁑ혬쯃䦴葰࠘ꆨ氒肝䀷ሩꌚ䣔㦌膬䒂긮捠ʘ麩舸뱼謬瀣⬗甐䐵Ō滗ట凁整㨢⌀ꉈƺ⸘溄夤䁐ヤ覆풶ⲯ㱙쏌Ỵ딥뿜⥤ླྀ询퐞鲳ꖉⴡ⼨菃陲˥龨釠姖\udf10ᓴ\ude98곓〇龝⩲뀼䤽쾣遵嫣튞柑ꞝ喷䑢ⶋ␙೅♧膬\ud9e3࣓婳싖\udcf5픢䝫硹栉훜뮭孅㈠៖ﺷኃ픅ᝌ市襠㚥딙秘ᤌ䔦턒밆ɵᕻ窒惗腬ậꝙ灑춎呴脫捄믻鬞렃茷ꍭ魨롫硶훞僒먣붝坺໕ᨣ닆랽闇贂桊࢚㎷⚴䂣ௐ掂逘藠ᘀ\ud80d퀇ʐᶠ瑂耧䁘à掂舍胇ΰ⇁풅aÌᄾ뚍ⶕꍻ揄\uda0cᆐς츁끢舉袾⁵ﶶ뗋䫺ᭆ븐煠ִ꿯㡘㧛伀ࡲ䎞꣝ꚇ佪懗빣⇃볼﨑퀦㚳᱿杄駺砙為薜㴜ꎡ㼧뢱풶愸㸻⿉纫궝뼲\udc4e⍁儯ꗳ䉂姰睇뫻凐〝䰦ᄜdD㟶ⶐ悧㿛申ꬢⳢ뒫㢯対ɼ鎜粘㖝캕㟴뻒䕬㥸᷉Ȅ큼韤錚堼⸶ਏ㑜ᝇٌ儮Ḳ屼懠肙砸⚡㗋ꑌ૫፱匕퍶ꀎ䦅峂᧠᪺긧促⅍ꕬ华ꂵ\udca6褎谲䍪枀窙ꐷ껽獩蹃鈅팑릴౮䑴⡔\udd8aᘳ㢁췛ڄϼ଀렍큮苀葰꣇栰臔赀㴃퀐ႎ⌥皍씓맱峮靷願钖᥹倂깛瑋蚊䖁軫씕撀ᚪ逭ꏆ䥹䡊볆ድ얮ڳ︈鱩郤뀂踳铉䧥᡹父ቻ芿趲逇沶﮷ֶꗡ癪ⳍ鿰ઢ嬳ブ춶䈁帵鋻〹睴ψ阒C샷嗄渳䝀耘墢嶐勒樬쳁慴⮠㠊\ud9db๹꦳ᰯ儽鸸ൖ个焮辅ྚ㠅슥㧸熕繺䦸벓渔댿䤼ཧﰒ砻ঐ⓱먌ø舤㠄\u0018薣ᦂ舗耜¸㄁자倱䤰閄銆眉臠Ꙡ啦뮓샟퉜⒀혍곓멉帊睶䞣\udc69悸茫菅쩿眥ꀽ\ude4d敏묿⍱讈螛鑗ጏ㧇긡쨈䍙ᾛ뢡媞⼞뿰閁᧺䯇噐୕뤼픴ᒪ흖檗ꏸ덙珊홼邽컨봨\ud8c6츶쉢沶ꖚὋ띋櫄ȝ虭袕魕箑⼶告ⶒొ鹛䘧ㄶ︦濕潮⚶얄㛴蚢쏭뻘໅᫃뛆Ꙩ䒦這➡∼Ǳ\u0010綮蘷欳ࠛ邀膈 䁆芼ᲀ䩁頠遇ಐ币犗ꀱظ܀擤懲䄅經ଚ帀젒聫쟲啽㖧שּׁ⌅⠎ŏਖ਼딢锇ۺ씹뺎푃魽郬铑㡡\udbda豈쩚耇ᇜꀤ留ᤜ䭩䜃ផ㚎渐掉恣ꭔꧻ픦縜瘊拽\udd56ꙸN윂ᎏ䩄ﭙ鮇縜瑀刏匁ኘ哂䅥ꔛ甦⬴滉ꇩ䬒隑＃㮏嵩꿲\uda72퉘쮴鬻悿앒퐉澤䉖ኈ雠〆렮뱥Ꮈ截\udf53駜췦煁輦灁朋㑙᰸炇韽㮗䫊謁鿥ࠊ䂷ꎐ㊁࠱ꁾ굖轀됚悬偘㕹丌ᰎ旳⁙䋉ᙘ눥鿀갅쫘䆴㞡ꌍ顪썶ᩰ\udb86밳↢莔ᨣ焚䣁㑚ྑꊍ鑪ꍵᩨ\udb46먷톡赎嚕㞧堲⺟䮰綌ᰜꜸ⤮鸳灰㏒겸䌯셑〈氲舟\udd44暄⪮⣈衚㊢ᆌ蚸ᴖ↸쾈縲ꩤ䲮뢓➮ᤈꙉ㊩鍌麙팠ꆓ皛謲㍂Ⅶ䬷ꡔ蘭쿬곣㜯栈쟮撁过ꁢ̥਀沁瀰박鈥և襙愻蕘极뤆᫣聆뾌◗搥犹ἔ藃蚶ﳝ䱶鏂帘餟蚢\udfe1鸇Ѩ⌛帨숮凰豄䕹ꠅꣴ䞪☀췠⍵᪊䉄퉘鄦跄纱Ꭹ䣤ڑ焃ꆚ䅓䃈틄ȥ釢䜢窬媞䞮멀觀ᑆ샰郠媁ࢃ텐貔垀酀ꣶ퐪⥑\udda9呶ꋻ债黕ꨯᄣ꠴瓱\udc9b恓䗼ˑ࢈ᢘ筆젒ᅖٴ瘨\udd14聀㟒옑熏倍䃒ꁼ鋅㈠ᇥ赤畢魙多윗∖鼃者쁮賰眀ᒹ腓ๅ䁌‿憌䤬址汍勠倗쏇촲ꟳ鹕䭟㿹꿈鱲ꈂ뇄뼬婁劁代凧뢰耞㳥䠭閊ர帊谔\ude2bհ⾼搂檤䃺ꢾ␀꤇誘䋏䍛倝麿輵ꖬ秭歾砹쇖恉؈▝涔ꃨ䂚ঔ⥂甊㪞蓉ꩋ쐀\ud84e⮞2Ǒᓐ炶표⤢箅硐멾ᕫ\uda89럶ᅃጔ옢얧絒䔲榐ͭƩ漞▶셅直ቯ汝焦梻\ude84◑羼ᒝ琮ᮐ\udd04㠨⃠ཀ\u0003刂ᴐ瀃ÿ࢐帀肍ב鼩䄋큳샸뇉⧱멶㲴ಙ㢁뀃マ찣咉≒弘鐁\ude25優㚉됢锔萍╥䡊噊銚蝜靷쬎練쩦로큇ᇻ钰ꦕ⸪孊䑙怚㩕Ȿ䴬龴﷘⚦㩝⧎끭層卾ꌬ뤸쨳ᰁ鐎铩è驁鹿ꈔ틸톦蘄〽瓛䐎퐳뻋Ꞩ犝钀ॺ筍յ튷괶ﯙ쀎洋津Ť䙊㱕㘱讔ꯢ霄⪻왞鄆䙝솓靵坃〡ࡊ䳵冓䍕霝᧍촵橕뮗貶먓⚦뚭♺䎚斐쩤瓚駃畵彌ᦑ曍첡㺯梟ꩪယ짲递碱춀⡫䭖뉲핆랸栀膄ై㢂\udc1a愂喘炕ꋴ햬䫨\ud9ad⵮歲춚雺ᚷ慐꤭櫈⍚᪖稜ꉹꂱ㌚ⲁ⣚끇ȥ뗐觪귫ⴘꢮ횾ꌑﶪ쑉篟偈鮡ሽ㤓ꬤ瓪鸭䢛ꎈ鲲醦䠊ힺ뙅溪말遌꼣夐竊Ȑတ瑃9ீ珔䨦ᇒ褯煺焟竲ꪽꪉ푚앫픢⿗ᨷ誀ಣ惜㖊᪌恪瑢悠폕睄耓톈잃業蚤욡겱뷪썗﫰틘뛆ᑚ貦苈腄䚖땤屈휣᪇ᬥ䔂놼焤냾禔뾕쯮扫繫钙氦뗅놱Ẓ渜棴⊮輳镍룱੨➞텐問ⓦꦩ냓下栾苭㔾㺞鸇䠐奙遂ﵚ돘蔦딡翣졔Ӌ㻍鸇ɋ굜퇫殻竎ऩ⁂恬ᡕ䊙蓐먶ɷꅆዼ퀖곐搞쀰ꒌᙜ⋓슲Ⓟ늉煬ᅧ픒큢꘥塭๩濲ᒋ隋笃垉鶰ቖ联屖네梳ᩚ⢫徼ᛎ쮀ᴐ춞艚펠㿃爉悝݄℁턍䵛臨ᄜ⵨᠏鉡䶴漖\ude82毱礆￥ⴜᇧ蜀跔芶鿚韖▻⣛塓뛔鋝뚤ꦾ蝩澦䭐ɶ컺ꔿ◘爩噓ₗ铑猪燭筒嫪延\udfb7唤Í⡒鵒橛㽎㫤ဝ浉݈Ǻ堲꺧ಧ桽䬙䣑㚥땶챘馇쾈瑴ࢮ稁쎥㒓䪉鶀詀뒤᭬뽎俱羉㯌쿺厶캩偳釓喨꺳ꐤ㏎哬잱䘥昄큃鑲ꍘڨ얂\ud9d6⫏˘⮝㽉镫賥倌ꁦஹ啁㕕梺ꫂ륪뉝㪩࡚䷵刀呧쮸햠髆咸嗙檵瑵\ud899嫯♮몝微靗\udd45ങ릻⨎傱䉔⹦ﺫꡝ먝툚ꓵ隲㔂Ҟᩁ鸋苜ᴐ⌤䵼닦ኚꕤ䥅懶乁ꏓ鳘帽Ṗⵘ歝\udfdc鋫ꞧ禵꫏絪䀋黦푞궵炋뵙笟寚赆຦뷺辯巕ᯕ㪊䒷깵淨嵚녧췞畸Ӥ扻睗죑ᤠ퐂堂Š䂀㧶뚪凗꩟枦䯚뺟䶪⿓毨ೌ膺쮾ꍄﺦ跆ㇻڻ䑟뇑ၮ뽝ঠ퉾쟴ഉ襥᯺茚몌㞋诽걏猪ꟾ軆춈跉赨ℛ쀳瑀à፧Ჴ똄.ĝ戟䴁ၮ΢濣笛✕웊妠縃頜ፐ୰㯆뀖渢䶼됼恝䴥嬅젬쪍؟ὁ\udbc5づ䵬ᮧ麛溺暢ᔚ쒅羊덠ሊ阡郘䡤Rᦻ僼\udcd9壺텃嶄䉇驃檄裚킳䏱덚뾚鍧ꇠ녷䂄印鄲벢홡\udcd8塭㋱渭趆⭯懖➱鴭鱎쭻蛲ퟄ씔뙎梓푑辕ꝅ섙>讪훓⣂逅궵ʀẀᰀ오厢䖀؀耒醹঑怏࡚⏈킵ਹ뙳铍뿎㥂頺遶ۀ媏䒨⦍ᴊ畼娷彍擁쎣切䎒껹ꔠꗽ쥋䘿盱跭થ걛⩛\udae8꘸뒻烩滊㘳튕ﭬ灎惭⺁육흙ᆣꫪ䒞鉀褯卥猭諾褡咟揩戂旸儻➠犟趓ꊝ슬ӡ퍂㴐홌ጪ馧殒ﳤﭫ⽐ᛋ밇닫㫌檉꬘䪣Ꮢꩰ弻Ƙ꫼乸ん㸌虿苉㼓੎\ud9d7嗔鶗噌赛杨蔲殹쵰᫵ꨵ\uda90搵꘼鷈洳跐㍓甊璡⊟晚鏹䯀䨁ꀩ᠐≀쁖↿嬲삪㮏ᕯ馀浏޵㗊첒꧲䇢ᥨퟍ蛤䂠깠呮\udc4bျꍰ跳熺y캴筐뜱빪璉넖ⵧ踄낏吤밀듘뵏捜聀ගꀢꌝⶊ䳪\udcd4뵡舘겱娰턌㥺蜢諾칤ì즕䓣䃬ⓦ練䶜謫発᚞⁌즣蔓簳휩㠩잚㍲㎊\udc96ジ쫮殭煻飜ᳲ༴闃췮㒁﯌䷭ቸ괈렠ₖ࢐⠂舐ۢሁ풇u⌜ฐ櫨䣂㑃蒦ؾ䄷ل\udcd2풽͊ₓ匩㝮ﮈ쐬ぽ艟㻹놻ⳝ柫ベ땑㙗∀ꯉ磤醏嘄㻚玜飌駑ྰ㝃\udf3b탳Ё蓫봆鬛䊖菥擎ᕛ뒛␧癴ʹ刃⾍䰓짖峤'ᨆ웛下牳쥭컥嶶\ud9bfʧ宏뜟퓼猡鄏瘏쯜৥⩱ꂊ脜⤁툨灻剴ᢀ會ꈂÿ౐娀읷礉\uda4c牷겈헨ᅰ旙홝發蛐氚䁜ึ粂㡤퀽빞㟐皬렂筚쵁ᾕ⛑쑠擳堚䃀㶸\ud979肴溇鸇뻠䇧컀痳ꐚ惼骿㢦鿏⦡둠濦드꒝㝮邅ﰜ苠螠뀄鬶櫸弧愗捬䖬┦\ud825妣襧쿕ጎ鄧㙚֋北\ud8bdᗤ랱扅丘쭫蝤凡︥⢰귂巰\ud896⒛崜槄ክ℘ㅑ讦☗㬀톦䀱푼㜠戎퀁菐ហᰆ砱Ǝϖ긂倗ꁶ⮈㔁㚜\uda1e◉┘萌Ÿטᢂ֍Ηʖ彧⿫妣棊䩢闥論럇ꍾ崻䁖ع皡轝ꑣ睫苗粢딱\uda96액ꗳ᱘\udc75喙뇎隵㴫쫀쮲넎贐䑩Α᱀ᱩ騶팔᥄븵脱䃳䴚ة뚘昬卖㐍듣陼碝뙳콇ꗕꆯ삣혋ṏ瑨厽̔륋݉抭¿壦耶☌ැ澃映郜쁁\udce5想촵큸ଫ\ude85䋠ꁧ૸᭐⤆琏⫔\ude8a侘៿将솱ෞ ҕ낼ﴹ⭄ᕊ줇䠮镲౥悍ꢢꂵѨ㶕눴菴ᯊꌇ셂깄\udcd6ⱡ캯Ꟙ➝\ud89d嫞⛒ꪤ鏢⤽⻣꾄㓫㫉ꬋ볉鴶வ夲ᵝ직렛꼡溨ᓓ㌾뫌譴吷픒馷咦ᨚἃ薴㣡묵꼧赀䁁䘜胂ۨ᱁稄聡Ō⭓㌎䵈竓啳䳔耝憽Ә䝅떲□麸╎ἀ玄楠♠ㅗ顏ⷡἊ竾᎞꫅멾絅쫻봹뻵㪽쎭꽐晉᤺킆疭晩挶뫸쾲ㄳ\udbae䳢敻횙蜀耂݄⏠庫할۵ⶼ∟廛諍陫絺躬㫆쿾꫑궙ͻ柀\udfa5ᝄ데槪辢ĉ 퀆☱㜪懃ᑭ⣄꘶㇏扢僓ᢴ쑦≀ᨄφ炌ޘ蜲涖༂嘬䣦탖㧩N服ꂊ黣䅤ȸ皃ꍎ蛮醺ᑠ溁扖䞄螢\ud917⢅榼ෑ⑨唗猌椄론总譴෿ㆇ퐼ۨ簏篍놫ό㥥ꬎ쓞쏦㞅䴞ﮋ⃈홊㥁识ࣷ⠂\ude02铱ભ⧩ꂄ㛢甧癦꠮妾䜔⸂䈖徐ᇠ᧍運䋜蝠鬮Ⱜ۝抓啐킞ꎦᗦ莺\udd96磄ꥠ䠳娬ᐚⴌ妺ꖆ痭劆ꖱ氯嘸誸鎖뤗뛓쎎㻰텚䒒囿ೣ寞鉌鞁㑢\ud9f2⢆‬΀ᴐ慀胐䌔᧠렙鍞໐᠂ԅ耗ʍ銐煎鎧⛉梛㠚䂄豐漂밙‚唩﵇훒㦹礥꧜ᴺ㆒\udf2e뭅ꟽ᧯遖껝⇛떔ꞧ䕌飊왢녔뢭챼縋᫻壎劽皀癌ᥛ徐쩺鮕薝뵞鑛勴녝駄摘클侮贗嵢朎駲뱧乧㷸횖헯辿쏣蓞㲁㟕\udd5c\udd70᧰볉ힾ밍冔긨巙횉얯紹殼嫖ח⯐敭煗僌핾흕硵꩎嗄৕᫭貃徂椡睙㗃휝八빏嫽館綯뺹諂Ǆᇰ됂初ဖ軐嶀䀃耬ѨẀ،瀢⌔᳻鐱蛹皣砞飝⍢䩒垻详⡴뇕ꢩ䷮ᩕ劀鸐㯷Ḿ탢磣\udf1a룳禜ರ扼腇ໂꉁ穓怖葿淋㚩惞驧속崾馼쵂ᦂ슎吹຃ꆅ㨚䶜⢊侀䥓쾟쿜ⰱ\udabc⢒៓ᶅ離﫴놑뵎畴卺엧譖퉟Ұ붨뷞渹蠖㒤뎗\ud92eߖ瘔팸ᔴ榧䴆椳䖚泐䀇㑰׍ṩ嫹ᩏ首击亐¼鐁퀀闸ԙ熽铡ꍣ퉨ꩾ똷홯\ude5f鯱\udb9a矑햒հ揾텂콆鐥糟䥜橜﷎㒭巭㎍\ude7b᧝ᇆ酳䢎ᨧ鸤쨙ཀ①㜛튁터壅∤঵㨸⃢Ϡ㸭姬긏뗎ꓩ䏥，㺱儼ꯎ\udbfa䀶㺡囹돊瀊䯭⾬븛ϋኾ⫹ꯡ꾌⸗\ud82f䱀猆出鮉ʨ릐┢Ԃᢺ⃋䂲⨸먰↊苜搲〓⾜븊ﮰ᪯몾鴁삁㸴㙻䋒뢂풩䠫䪬舌꯰쫋낌ⲫꠦ쪴賜루ⷊ膂粨頨⪹芳奘☫븾鳪Ꮵ⮿튮ও說\udb59讣侜㉴秊캫ꌾ骻㏫錮꺗娟懏閪峻᫩즙깏寳뼦䋺\udae2⾷ꪎ륛곫駀딈ꞌ댐檤͌Ŕᶀި࠼죞렯歀ᘀ码︅䁅삄䞯跌裙Ẃ湩렏꧉ⶤ✁訒p膦ΞṠ썂ⷌ稻৖ꆋᏨ䶈霥ꀂꋋ議㏀ฃ꤈䞱䀷䈀ྔꠀ⿀怀耀➚✋鼖$磝ࠀ⻈怀耂◉㇧⑌殐菦(熦䬯Ṏ龜⃃뾔䉺\ude69쇸᣻뾾뉨짤碜鹼㥐棁ꑾ戸裨Ꞁ脒㡰戀㿈銠⟭躆碈朅鶚智䡨鸐䢔ꍧ谒願ﬄꆓ黈䧡旦蠀쀆廉䖀媹螵⨸銡៩ᚠ廴嬘끦昹質⊥躎ᣅ貊\ud8e0▷泭טּ龆\udf98끞㫥醊㄀卍퀋쌞쉐帀局뀯µɲ聭꩙냁뀯䁩εꝞ浄窵Ôù⃪ᰨ⍹궧ኁﺉ⮟闾഻瑮\udf3f雋硝ꡒ돾崺淯켯乏櫭뻞䌹ᷢ㎲옑禝輜匹汬q璠؜攎裐⾰ㅇ騐⡓ጽ齔⦢注∃ꠘ퇲肸⊊맑ퟫ玪퉟ᯠᇕꄁ；悧ཱྀ諽娚㈾ᙛ굇怣ꇎ薖ᛨ䮁磸ⵡ꺿䭊겮縆召䦵㹻嬄ႌ茾죋佥ꮎ䱺튳묾焈꺢䇶꣫ꊐ玪椆௡㜰빞ꦔ⻌豀䬂ᰂ㠌ʹीۀ蜃ꈁ\u0012삷Ǿڐ᷀瑀䀅꾶ȓ\ud9c3怺㑮㪚웬趕㫀╲ሎ冒Ξ໰㭯昚ꙶ\ude03㙍莮㘩\udb41᮸嘎쐺趙຦車ᝯ蟁厈ꁣ욉ᇗ餮 䢞廸鹮➔骒硥Ꜧ遾킄⧣䁔縈虱ᘣ븊鈹龁鹤⭙걧蘒⹻蛂ꎆ虪㥧乾문궄긤桼ꄝ䱟鴖䘻ꯎ徟Ⅱ箘鑞슇㡦ိ転蒷魾㸚쨚㐳䱀㊡Ϲ董픙葑苐d띀砃爏䀀쁹茐Ұ뜀ఋ⨣䀈Q䇀ࣀ椀ఎ䀍ꅅ᧚ᩑ賺᳁⸃>ၧʼ໨厖쟹稙㞛䘳秅⑶鍎譻\udfe7銊\ude4fﬔꐝᡖ學䱮ឩ励蟔ꕔ艡❸걦瞺욗竧䆕軆猸負보ꆶ貳鰺鮱쀗∼裼ꆷ䦆࠸鷪䌍䲦ŷᨏ덡魊똘Ｔ㻟㭊쿘刖煆관䀒儩䗰ᐅꪬ碸ˠ뜴⣷蘾᳸毡縝Ͼ᷀皾㠋ⴞ­ň뤈ᄃࢁ납蠟દ⹒Ҡ쮋茆爇㾁㸝蔾ዸ寡ᾅ縓Œ唌㐱틯ꁃ⹆ߒ꼠錪沸堙쮵臚ॲꞠ輪蘋ᠠ⪙苂ꫣ먦鸇丝㫮ࠒ悫ꋡ뭘쌫侪ޮᝉ雡᝙돯ꮾ羽ᇉ뇡轛搫즹婞ᦐ痡⊚宫㌵䋹ۛꛫꙮ厂䠉킔쬜첎錨혰쨕愑ᩦ萊⛎았䪅∧⠧Լะ鈒顏ါ象탆@Դ絑考√蠝텆܀忒瀅֩쨫㣰\ud981ᇐ䷜覨⛮퀚怂ôᎺꉤࠆみ䆓ݖꦹၱん萉퐎オ뇺♴몡鼋ꨛ宇ノ骺澞뮦춻쨢妛湏ꠞ镦ꎪ\udea9⊡騎肀\udd60炩匘撙馲䏩컠⢝胤èැ⯀㽁껩窢器謯ꎻ늢﮺垩\udbbb湥욞맮義ᾩ梯昬Ɵꨆ蝦\udfa6㴒ȇ郦恺㈡ﺅ抓飖ⱼ瘞଄䋍䁲˭б᳂甂잳쇄䕞敃蓢㐻中ﲳ븯얻䞾瑅儐쑈⅌䖂ጠ⬑ㅇߠ⎏ᆈ맭Ⴡꢎ퀥衺ꆵ턳쯁覚预珍衈醢᧢ῆ릞΁姢䡬虤萨慈瘖쨙褞龫麙ﭨ欤槆㨡鐎꡴䳊䐘楾☹椑ሂ葘䵬屚㟦绲⯱恖詞㊆矪嚦㓖䖶蝤幞錠ᔷ‾鎴Ƥꀠ倀젆쀫삀臘ʑ뼐ᜀ嚭䂼͐औ狾่擪둚䀈ʼ`Ḁ옥瀏亯숇揄敎ꟺퟅ㞇電比恡䭸㿦펨愥䑭蕊酛䘑ឞ\ude35䟅捔韾ꝺﶫﾪ態ዘꝒ妇莡푿削\udbe5쀶ఀ絑햜衩ࢨ䞀ូ섩ᒌ긬ࣇ㯖Ḣ덖Ἒ땡뒒蠄حᑀ䏑瘜䨨☷嫶ៀ斉혦\ud89f扣褢몸ᄗ㮁ኻ玡䱎☾ݓἫ袺븉⫤ၶꫴדּፉꬱ૪鴣ၹ瀬頞ỉꚺ糅硕껂옳⧪낦ᘃ췂䔙ᒤĬҤ΀蚅䘎퀔ÔɆ셰Àȃᐆ픠ᇒ젡ᷬ纾ᯨᅪ좡ᆝ蔂䎮ຩ\ud9b3䨎ч\udf20禧๦請寱໸缚膗޼ᶁ鐼ￇ缘憐Ⲡ蕉恾넒ᾜ⇐❱ᕊ欆퇹폅⎠酘蜉ᬅ궚풅⣫䡤汒䕨惈䚎ꜚꮂ䨎蹓炭䀗駔\udc84椙꼅纜♕ዶ꺑튧䗠摦婢蛱氢歾劇餑≆廖䖄쬢檡뎳ꬅ᠌䀳̜ưⵀ㌁⤎䀽Âĩ࿤܀ﵻꤊﻐꠈܓ鶀⎁䔞斩ĜC貌䢠ᨪ凥㮥ᛢ䓞柺碑羁\udad7勤䅑ꔬᖧ亡孴盞㊧䱨㎭冟樥漒忚꥛㔜຿᱙嫝緞大굌ส㢵䊦踪ၸ쬻ᐏ樎ብ⟉ᡦꎨ升뱨＃䧭婃筡撦䈕ힸ>ꕎ̐㾩\udd33⏫둣˃ꈂ䷉眦줯▼釲嬀띆ࠡ㩘经䛴ᤜపﮨ紑⁢⫈アꬠ䄮ข캛牽즏✼飸⯉땃ౝ텂௃ហ攀ለ튣₊ㄬ뤨⺌檂겪栣恎ㅼ믣ᠫ鎁쓆誦♢抵곡鏬⺑⛳┮჌䫡勩〉뉜멬을ᇌ嗖峇쐓챞즦뢞ာ䯖䛫팡適쥟宜鄬疺틆뫬偀䎄ઘ㵤鯢㾉㰏냉腟ዊ⸘鵃⊍ⲯ`μ雀ࠄ⛄℃멋艏àֲ즐ޮ큕\udc9d߆귌윃摊왈熉쳆䢨䠁놖\udc33搲⏬ǳ᭔뼉期安씶腱궺뺉煇롾ꯛ衦θ氄㮄曇섷ᄻ뽺ꇇྮ⸚晠聰 ܀褃爀㱂徭鬏ᶻꥺ๦ỡ\udba2\ud853읶굦도ᾤ\ud9a2몟ꛙ鈔㈂Ἑ蚩ᕴነ\udd00踍혩メÝ಑ 蜀চ訅솗玩鋆纙༇㧈ﱛḣ蠀鏼綾鼆㯣㢨麯웿ដ櫢ヨ쑋䖾揿ᬑ䰛繨伢⇰蟼崩ࠦ㊞艅騬ꚧ賔衛Ⅽ枑घ墐韫ᤉ咆ᚚᬕ঒䗐껧钼ﲥ謎逞\u001dጊ鋂圡韩⩇ॕ냩ኖ鯆梅\ud8ec꩐覉窙Ẫ䝾ꉙ知摲䁨ê鴥붑䘪̭ᠺ⃨茔ࡰඩ挡 袃葧ࠬ肀椂谲䁊䃁Ꙣ澊麤씕ꀜ밄㩐Ű᱀к페ꊳ褞葔㮉㭪퓭洏褾嫟䩒ĥᔞ페應ꑆᘒ尀紸옓ㆁ\ude1f醙騳荑थ걡\ud881榽⣌멉㥙耛顕瓴ɮ임띑萡Ꚍ∬࢓폵䎀㖸흀玿㰵⚥궀絉렆㒓玈㻤釘潖嶄⏠硟慞ꔎ鵎洹犌㉸앎ᖉꔱꓸ첑侭㇈染ᄮ衁뾰겔쾙홑Ӯᵭ븙沘\udaaf疗⚧蘋ᑲ䔙⋅冚⾹짬좠ɪ䫠뷁 쀫쁖䧞ấ̩࣠粕씏즠䗼鯬桺뫋ʞ鶎䁨䝧榄娎킦爜⤰㥂鎄偔憃촋\ude62ᇽ⓹葆⊞잁⤸ꞿᅄ紎鐺쬭ᅣ擵顊盢卤肖ɀ鯍鿃ꋙ倥튓䩏칈蓇ဨ腧Ꞓ繲㣢ᛊ䗙쨻툑⼭ॸ䤺薢よ囡겪ꧯ枰鶯㒩㽥ਗ쉵軜娈鮖ꪩ⃧⢦๺廲蟵䩫ᨴ냥좓픚䀔퇠૰ⶰ퐁︌ᐜ臄ੀ⿠㌁Ⰰ〡碤8ࢮㅀ鐂㸀ꥫ揄揮䔂縱쀁뀚䈬Ć鑿蕼ꆥ涮ᩖ农ᯢ癊︦ᔒᡢ槫童⊚梹䒝呬웒岹禥￡鴒맗禤鵦㻆᫧᠉㉘᜖貮㋊椉䱈긆䃙ꊔʳꈁ阒沫剭릝ꟛ鷚緼鵘뮟\uda56亃ꕓ雁簀鰔셎텛꓀醃㓩蝄鞞찣삤W镞傈䬂힐㊺뤄哴紩좹́ੈᒊ近Ꞧ抦䌄䕥奞畹倇幱삏ꘈ⮠墂澤᠘쮱膨얘ị뿩岻挛쮞ㄎؓᰫ飡꓄ᏢṬᦸ鯁鼸呹㭚鉪虒즡ѡ颞皮짤沛虬䅩⮲晹줆醙殫홹陮딙録톗遁䅣꽮꽰蜋됭̍䇨\udaa5莈┮톇颤蒎ଡᝠ蠂䡎蠻䃁䖰ϸ㝀쐃ꈈ橒郄Ÿ䩀ༀ蜂㐆⹨ \ud928ժ搰䨁︁䰯즊昫⟬䆦坁⛢鮅爉⦛맅庸뜇鮡ᨗ஢䪍ຈ統雯榫쉟੼⟕♱\ud9eaȠ\udbb5駹髙頺ꥦ뺥\udbb6嬨馎꥜置췩別ꓴ蠟ḻꬢ⷇仦\udc4a昣⿖駀贂㸍밤夅驮鶙ꏅ屄放괼婙ﯨ㙯㱳昏ᮖ䎢瞺䆭\ud9ad﨤鸹酙䕥佨㐛탐Ǥऺ긠⺖釪蔤蓭\u0000㧀¯譢ध뀸莵骩❙௧疔빀骈ᮢ骾嘩ꊒ㙰੃摍鐂绹⒦肑ࡗ藇䂶甆䭧劒뙡敫朢ᦧꩀ베沯쑚ंᡠ鶶梑㠧肧艓髄蓈洄뇙邘ቯᇾ挊睧羞ᨲ칞邳茐 \ud9b1낛졨ן杰霪帺途記摠㦰ᜃ館䈅莙≪֨ᛪ鏣벉䘇䐙쀃͐Πⵀ숀ͪ됒쁩̈莀†숂ည嫪Ϝ໪椹꯺광琗蓬셌䌀㩀왱㎖鑟֬釢傅鹘衝칞儝鄡䉩歸뿦呪椕䞘籡\ud9a5쒖ꅢ䦖ࠀዔ倁㨔㓯㎹槾殨謴괨ໆ픁\udd3en榫ཪⱨ᭓ꎀ븃⣭ꗔ鳡堾໧㒓뒳륽ꓵ戛〦\udd87艩璯䧞僰駥縰Řṿ䖓葌騞哉哅⪫㉒᧣ᜪ稙㋨䐔鹶ᛮ᧌䖪㬤枓쾖礛ᐋ䟖处\ude1e⾤ぺǠැೀ瀁 ‬ぬതϐ仂㰭ꁰᅲ죻ᒦ徱웻ㆦ澳\udcd1⅛໹쯥왗잏솉铢鰧뛹톗覤䩰ঙ队鎙䧢禖龐她勵㯭᪶帊斕崂熽亂曖営炆堦쩃壯⯊䞞졢鎉뎃璁惴섹偞㲆椓㥋ቕ쾦萅⡜帪ꖮ娢傖쉊檜腹娱Ǯ嵖냾ꏻ蟁㾔糓𢡊뱼䯺饡扷릗⫰ݠ⼀싉芓션\udefc᝺ᄚ澡㥇䅛ᩜᗱꚭ뒅꿹豬ꅢ憭⭡峔긕娔ᅞ蒚맄垀᧠⩨ී㱦ⰇૅↃ蟕ຈ␎ꡜ㨤쫦耏莅㛥롗湇ᖮᓍᏅ睖덤厖㖮任嘝尷詅屇ﳦᅸÙ坥䎕乔륙뀻闪ˇ蓭蠪洧Ꮜᅠ脻꒢㯑뀲ẕ讴脌௼睰Ꮱ鍟散闎嚹卍枕픕銢艹䗯ꘘ᧺献ꘄﺞ恟Ё金嶁ﲸጔ⮳膶炓ᤆ灹牕ౝ㉒閑骥拉ݛ䱙ꕁꪛ螬馌ꋅ嬥쐞鹷㹉ґ鞮餙녡移ᓤ᤬撦蔄鱚댗⃷刷≭ꗅ送♯灶ɏ׀㔀\udc80瀭䁊Ȥ೰׀态怍퀀쁿苐ໄ㓘倂퐋䀭·˹⯐ⴀ줂㖨縂暐߈ᘀ伔뛂⊒╁回羱\udc0e鶝탓脯摚鐪뢁鰌鰿ᐠ郧艞ᤨ䱋摍訟⑙줘ຉ⠠閐蝐ᄐʼ౐⩵릡怇䥶熌鑂➜䬥庛얞쥕窥쒥鉻ꮙ嗇릙煭䨻袥췆仪\udc75狭욦怨颹贆퐉퀛J鑮骥煥輙ꥇ◉敲剻麥廠뱀᫙昣ʼ淮埨㻥楖鬁눚뾮蚧勇镡襙威⤍鰭삖퀘葆ᅄ\udc80㸘ࠩ胝àไﶲ釩᠆䂟ઽ腰洌뚠㙅耊ॳᇮ愙䦾䢤䕓ᥟ姤䝅媙剥耩０镶⤐⤾汊䬑\ud996䭁ə領ꛥ嬂䥥Ք\udf96냊ᙕ牾䙻悞↾ⅈ娒၂孥麲⣣啟敵噿韊帒騠욏ꆫ唂ꊊ餹弊펗ㅤ⊜攃吅ȥ\ud8e2摺㩍喹嚩㍕쵘㾏咊첐㫠ᬀ餡ⰟΪᅰ᧠̂퐆逺怬Ȟ計†氁⤄셪텶\\ௐ଀ᨂ빎卺拇嚸騅䂅玙ե픷吘缹鈖⅞ᡨ䤏殄鎷芅暙ﾬ막蟋鿶뿾齔昘䕞蔹萘姠᪴Ⱚ칫慈蜧㲈쟀ඊ踦츍Ꚏታꎅ䣗녗㑓䤋䝱咴殹ﱗ쏥퉡꺰ꅻ閍棐攴哕䠘\ud82cÔퟑ纵̖᭜侰얾ӓ᙭恁쮅䱟Ṍ앚嗌厥綵穕敷ㆫ᜙庱箵鬗醞⛻嘩鎮勅᱕説넞뤜⎛ꑵ蜠昍䀘葯ᆂड౦危뱗煢䛺䣌඙鬀褁騟䀄Ýʂଚ鰀꼃\udd4d搢롋2觃ۀ윂퀂쀴癓獒\udfe9᷶氊䡈瀝진È࢐㋬退ꙫ用鞷嚉嫂ᬉ氥Ꙏ▸둜剰ꕤ僚ቕ腛䁌ꉬ䕮ԁ囬倍◟ଥ杛茥噥晈㑪審隥ઋ休絟╡頊卽䣮슖꺨ﵟ餳렅龺肢羀瀄ꘉ观˿吼沢녥뉜͆墨閟卙ꆢᩘ纑ꗗ뮟Ꞗ禥嶚먬荬ബͺ⼥⾢蒈޷觾눬聸๪ﺾ䁁ᐞ\ud98a墾抈筶\ud807詌㈣㱕荺Ḱɡ脍鸂䍍හ櫓ه詈㗔\udd09࠹䐈쁧ඳⳭย루/۠¤뭡韮怣拹㈶鹢빘跣摈\ud9be咍≪앛⍲唙鐨\ud9e1劍ᒦ䂚ꍲ鸑寧鯄慕ᆀ㼎ጕ攏静䕕겦\udaca枮ऄ葙宬ꒄ癟ҙ\ud93d鞉ሯⶍΖ酪熣赑㍦誎ᴨ誑諚䓸퀵嬒ķൔ\udfaa楸愵䢖䠔䤢ਈ钳垠垪礴錓妋䀟˰쇀㜠\udc82琍瀭:΢च㔀⵪琎⨒颍Ωưㅍ\udee6ᨐ夆䁰ϗ䫰♵딴뎐銦免㝸锅歍흕鶨ﾠ링Ⓢ刮潍拤䒕呠촱⒨喅棍⒝튠œ㝽审癡祚坆覔쑙ꌍ♐ኸЀ額慻싇솾⽊໔廉녔ᕝꑃ姍ḕ㔀锞坘揭짛㒽ò痄ࢧ絨㣸䆚㉔ᦒꣁ鷳熵᭚魒ꕀⶓᙛ尋疵ᮆ䐞୒뫦ꮎි愙欕뭜⶞퓬坫鬲둌봔#聄֑辩䬃됇ⁿ聭쌐͹㞔骿짊旟⤙史⅖實ꔵ빴\uddc7뽙ᢦ儘长셗랈\ud8e5ⓙ鰻䶝쎻꒟錈繕澶镁ꍡɚ㟽妆៎ﾶ涐捋稜㙝鄤罥\ud9fa鱪湣왆䏀ᅍᮍᵔ䪗蝴ꦽ哗朖쑷⹒㕐㧤眥䮎ქ䢝䱑㐹ᾦ衼懳迩ἔ︱⋾剷\udcdc簛rˀ⡊䠂밄耲鴡꟔홵䐕ᩴ듓ᩘ蕱ꛩ퐒䡖ꕆ졞杋헟ﮌ藞榅\ud9da鉃鵄噤韵斀켛꬀븧瓞鉆ή灌昒誈꜖푹舗摝᜻藒\ud84f楑盱妍凹勒鏞佥㶹Ó\ud9ba橅厦쀨ஏ巂ǵ퀷朅瀃ේ㝸\uddc7÷媘띷ꧢ䟮駍癅䞧拫쵾퇼핢ꝯ䎽瀂ො\udd63瑍\ud92d䴮틗틡禎⸦Ш⋑䘱嘄犫恮ㇶЊ儱퉔糛╁崳蓼턞戙ĄⲘ୅嵇宄፭䵝䋔녴ⴄ曂\udaed缱ࢵ饝녅镢쓑韭崙墵ᐚ煻껍ৢ律抦崉ዛ키葿苈였㝀冀찋쀷‗˓훐䪭몚ꉑ骽반镪톴㽵㪷违鮄甹숒偛ꗂ畚ࢆ굓ٚ\udd49䵮躛\udad0\udaae\u0017ꥺ训䦷뫑쥩㞗Ḻꗵﲖ캯듷ꯦ哮곖뽝⥘宅䏺⤀熷䖐魀ෟ懫䉙몔曟꥔ഹ듚⩩旺鶙⃙뱉浥됐ś羢倃囒᢯᏾䱢䶶臩荸ứ讶햘谞\uddb4⇨墜Ḩ稢┓⭔ﻋ໓荞෶鑎\ud8baݘ癀ᱍ⃻큿莆☆ꤞ궈뀀턎牿艢輋㵢ﰵՔ⍉坼ၷ炍鞶趝筧ẻ汷䇹訷揌ꍶ喯뜈乕睴腥琁ࠀꂼ檂䐖嗢㊔ݎ\ud98d韩䳙儡བྷ䇟↧斧杶廷浕㹩\ud8d0합륢ꇋ콓౨胶ꤖ啸\udd61脝밧륒ꦰ툢䔝튅蓝䝕醨쿟蘅響積星쁬ੀ᪉⎁粧ຟ䃑걀Ѐ\ud8abꤌ⑿臙⇹盕襜ธzè়赆풓퓒鶛樳\udea7旾⳴ؖ콍픜咅伽ᅛ᧟퍩鶙꛳\udf54喝㡕௜鉈뵮碖麮泍⹷崃㸊䂿竲轝ⱀ긱띉㊣豰р蔱̔贤⹕꽡㨮ᑅ획种䰘璜璵촉痜푯宒帒谾ヤ쏅큭好懥츗崵휞絽ⳅ憗浝嵻薷\udced凡쑥矚흏緈뚋᪋䗉䐃倌倣䀎Þಔ劘갃蓦3䁰খ랕㍴⍦\udd5c渨\ud8e1ᅼ뙰珧愑\ude78畝鏞縑쏤証葵负⢷処㞵라攱喘㜕囹ꘌꊘ睺斖ລ嵠씆쾴꣑ﭑ敹坻\uda2d㫙Ʉ뷜﹥喯\udea1跙㉇\ud8dc歑Ⓢ㘝쀖磟졌懳闗湃䙆赟ཙ醈ᗊᄤ閸㣓␎轑諎ॆఠሀ凗ꤋ쀌Ô䆀0ᘀル베舴࣐㑎ᜀ㠃〤鶃౵헔◁쉢\u0014஄ꝏ䠕ꩶࡘ냔槾萭亝脤氽퍘왑蛬㋶馝蝺慒㍻䩣㟦鰯縕嬙딑烯햚࠸ඤ圽ꢆˍ⡠࠸奲ᮜܻ슶ꉫ획亽玐⍧癖㺦㕣౒壥\r谓岶绑쓖\udf43䣝⌌躼ӈ̂눵垇⍉ᛰᣍ䈮ꖗ㲥좆䗨뤇\uddcd幅糕麚⎉聾㯐㌣\udf8d눱죢絰쒈⫺沵贕纘굳⨪홣᎟候崔៓텎뗙璢扟琙䓻韔坂᧾Փ䪮䳄苘\udf76闍遈쫅䙖矐牎祛ធぞ癁譌뇅ע墜݄鏁⚉벺″˛୐׀狃㞜襶ﵪ뛯\ude89暭ꦺ῝襆溺럢广䆭䒖ᛣ팗ꒋ趱䏠㥮剝宭●郫卪䲗껥ｑ焿峦佮㲗٤ï괠೒☀쾙投㽑⥋阅逨踀辀ం㠵쀐̠㊩䱙栍뤱胈ඩ럿팼渃蚕斜楼෹똠톼巺욗進璊煕땾\ud862훛怣浨㜶\udac0昭ތ扈篁뭓ﰎ蹪⃃湸㟮\ud8fc䒃딂\ud822琷䇾ԓ⟴䴓靖耓㛭횊檣架띉莆ഥ垾纣ྷ鸾镭莰蚚ㅾ掃娵ﭫ秷䵙垃俦悜݉鹻撘큶愉萻݄䍩ᆟ뗙䑛㨱굙燈蕅ꞣ䃴ņ䍜◺㯣嘁㤎⪜ᣜ㶅ణ\udc50픝ᆏ捅ᣊ䂱贏鑠즓騢።䁰ܰṠ鼂倆撍䡜Ġ̰ဨ쓴帱ိdˀ㉀ࠁ謈\ud8c8劧喩\udd37낅쬌瘾퍼ᕷ唋鷏憝\udb0f졗냜慃㓋钘壣㔙㣡楚Î㈀楩益尷ਈ⡏砂跱Ό鲣䐌긜䰋耮ऴꚜࣕﶚ᝶뷿໫􌏆ᣔᴩ獻률谑鄈突䫙쀇䳃㍌첳㻳䈣鼵∰ꕸ礦핗탄쓅뇧ㄵ坚줌髩凄썝虔뭟뉹꺇⟱㍫ꂓ噔ⷈ䀑䢍F躀ก뀈쁘Ɍ⚐㭀焃됅㝎븰㢷偯볝䂧ℙ\ude76䀒象ᔨ츎ࢦổ᥆\udd8b予큠吝骏\udced䷻퉝䚌巑쑱팅ぴಧ娿ꍭꎷ䱐釴헙岥㨳䉽贡㋚迖㵴ਣ漅䎟杵孿㠽娂鐉ྲྀ哃\uda47䉞ꆎ莙륩䏞詫Ճ稩吸䈡ꥴ䎴΀ᴐ⵨瀎ⲻ苐ࣻᩀ֌ఋ䀌µǠŤ⇀肃匴꤄㨧ጐ㿖Ⰳܝダ劳࿓\udcd8鳏㓞銫㶽᦬㷘흍실㣰춒쳽괬닏⮐곏픒㨴ϰ䂣ǅ덣谡㍓⒮ᙨ 誂ጮ뇪⊀⏰ḹ泉쪎컝⏡䈋䠬ꂸӿƏ谰泸槌朶祶玹쿧㠈ⅳ엏︰쵅ꏛꚁ㿯晅致⊩Ӊ䰔儾㊋Ⓜꢳ鳜䁹찗㑜娇퍒찭䔩嚟獅䫖둚굻䔼롫分慽봖靇튥㲈죅ꢏ埒虰猚呪\ud82d헚꺗ጱ켒㯄잵ង痙數놃嘤㔣٦ᵚ炊읇婀Ⱶ뷁瀁戧䀫ȍ౰㎂ர౉ᒀ삇Ⱦݠ↌넘찍뻉ɴో潰쀑衏嵣痕ေ⅜\udcdd㯷螭圷疌怷㰉ᇽ헊ཛྷ㵆呸Ə嚝ᄀ鏗萍㵉䳙쯏墽灦䨀꽖뵆䍯奦厓亷㉚뙶燮\u000e\ude9f鏃먅ヽ搃쿖ྮᓸ浣조෣౐┿ﵫ┩䱗Ꚕ\ud80dͶ匰㛥㡀\udaf1ᚕᛚ䃱厨㓯ẃ烦⊔軖㭮᫷쑵鲸ᓶ規砉\u0006娽သ좜\b䳱疔ﲎꍆඞ旰惙뷍ュ꣺퍇琏㶴뭏ᨷ惤短㘊댵좆镓⎠ᴩ屣堝꘴䇚\ud954ᵇ撽ョ踖犙亯㇧뫳땙쐀씜㫣霃㷨暑뺌⡟춁賃㊹嗳蘻糲㏷쵃随䌝ﮔ쓗騊悀聜Ĭ㤌㌃倅쀺쇮⪅ը彠稀떮ꐼ䖢죀넢褀哛퀵1ļ᪂㘿デ㍞┬㮂쫃瘰⹧㵉ꘋ㉂｣೦ⳁ쎪ᔜギ帕狍婢뎗༹\udd0e襜⨠Ⓧ震䐹୦蓻ࡌ\udd93䢃ਿ⡪㟣傋⣔ȴ킂㈉꧒起袾뾏藑껶ܚ쉫ℬ儵䭞ۻ㊈ㄮㄾꕚ긬何후츙ⷶ㭜녑꺼쑤뜜\udf13䢶✽崩츂เᧀ䩀踂㠖íȤી㵰㛢쾀‧⢥칭跈\udf95ꪵᕋ섋仆咴⭏믦듳⯬겣쉷䁾㭍㻒㳥⥼갸㹨펃砸﹐醾శ嵕䟝眺꣣쩌䎃雰븢ք因욀혁ꭻ캃핛ᇳ蛲鼰\udf89ᴰᕚ뚪䛥┍\udab5贔㤰㣇昽⏺蟆㾄粓קּ쌿걼௸⟎壭ꄗ賸孨需蝁‌倌횪탌㳎䘋ꦬ똽苳㶙곳㸡淕악珒ቓ헃㨜㔬㋎鰵㣑榳㫎㽂\udccd﹫ꐬ룋㮤ӻ⢨⨠␌뎩㢄”䤱ᕥ훤鬺⋥칸҈레岮䚰䎢鯊溩륯愵侌\udbd8瑃겾뛺쟫ᔵ昱슲䂿궤΢쫒ྏ삔䂯뵬햢䦋\udf45颶Ὑ漾뫺ﯫ龬﫧⡨亸벟戱꧵㑝艹ጜ뭧\ud806杅淋歖ټ⍡ⵑ㺺첮儭溸᳚镨旮먜츣䋙ᳪ䭧광鯏ꗫ夯饒譞얢驚䈤쁵윗䩣聃䄻޴ᢁ퀰ొÍ∷⯐ᬀᰱ䀄밡↗\udaf7ઘ◴猇뀳䢾咷鯈砍ꭵ犡Ν닌ᗛ馑硊䠽\udb29숽볶筃鬮娃⒣ꍐ೉᳤퉖耦ⱧH㭰࣓＂楗\udb99쫽뜒ැ㝬\t痈㍈痫쀁相郋䄎꘲ැﯠ\udd0d㤎⃉ᛰ\udce2㿄㒭⨱ꣽ⮧땁븆끮۱ڃ켡덠켫ʮ㴔雺赘沝㻁被\ude0d誸据→괶帇縉늮ꅯ⫝麯䴪낼쪫䯌醻癊ᴯ닗䜊α푮䑧䛇赆꿡턌쬛糄ꇣ嘣㒏楚䎝끓ꯕ栨鲸Ḁ㌀㠊틨耸ಢ†대찈ࠡ Жⴀꨲ浐冐쌗趤ذ藀붂롌ଽ¼ʳ㉿頕髜\ude78⷟㶏Ⴗ\ud8da楨埬㩂쒳꽔嚱㎵஭䛖띂\ud969鋴ຊ桡㈲褌ᨸ縰\udb88ᛩ㢃萊ᩨލ㮔磉촧跜춳녵峕㫧뤢埜\udb9e쌴׭\ud804廉箞쾍뾗䑋ᮯ䶲坶촱㼒썽ޭ⒴竪\udb8d瑷\udb1c\udb6e뛏땔趒谠⠥穋됂쀋Ͻ憗凪堂㐇怯䃿곹岫敳ŕᄟ㓛猐汷㓊즕\ude69⻞ꌜ곍銴峙饖巗ꋈ䗯똊몑喣㖖誾啸ꯘ☑벣骫퉄檸㥔衡턾쎢ᰵ쐂찦ޯὕ뗹骵ཐ掖꽻두용篅⒏縄⎣㰟゛\ud8f5覲땾㷫唓\udb26ណ濭㰅醤ʩပ솤ꚵ厖௩궶㨡癫괻ힴ䋁武淕Ṛ閮䳗曪릎甫㕰郃䚅∶ꬍㆭ舎㎌荆泫祚\ud8b5䏒肾츁쎬嬹ᛁ뵸῜\ud9a1ﳐ尀롘ῐ᠋鿻尀tǾ䢠Ẽก봂ᖿ瑑ܬ퐘뻍䁽䄽囌臦⿈ᄾ㩇餟s釞䝐᾵뎠杛⌟⵺絨윫忖\udab5︭굨᥅븫駻鍭솛\udb74쓟뮺ﮭ蜲쾄猩ⲿ뷄\udbfbꙕଙﻅ⍻氜娤쌙ꏴ䤵⓯烆菒觐ೀ퉀尋牜ݓ⾩㌲ﯷ椸닮鏐鋢婿纭朋ቚ뎦恵䁷䝿番嚴\udad1狣鍹다▙洌Ꮴ쾭㗅𢡄ᓝ≁䱮ꈔ뼯㺝ါ@ఠ㉀̌翕ᙢ厨ං띲ﮓ鏇ꔴ厰꽦펔ꯄᛒ䃑卯좕㥀쟮퐌唳ﮕ匑蠁ﵓⰎ笈ޛ洭乶헔콭및⇩\udb40භ술퇱戏⃋醏莢Ҥࢶ늠嚎趙䓴㐍㡊삻Ⱬ⁲⍹ᶋ뱠쩥灯恰蛕荃쵂᪆쯭퀐껢걂꿝툀㽔捑䇫\udd76貁\udf74풫轌壛枹⇡ປ볧ꔉቇ큺䛲ᴁ欰珩ᫎ灾憋뭠ᕤ㼪翙퀕ӗň䵢❱륤咇儀옼Ỵ䷕ཆ๊ⲙఏ⼳聋݄㽋ᄸ䐁\udb11䡰F뺿ꇻй⠫᪈ꊼǨਫ਼왑㩬页칖鶫೦맓緕鬍଴嫋箥궷녧棣ᐭ妵䋍鯕겫黔罻య좍∢䢤䰎ቀ匓荗ਓ\ud962쇸죣ၘ封葼赱춎崑풸Ꭾॐהּ촵꙰❧Ⰳ登\ud9e8읣➌礲哛匝徻㛅떘趮ᦆ涵쭭ꕔ猰떬煺ﯻ海撷\udf65⏬즑䣐ᬌ퐉뎇ꮏ舂܀❀鱵鰄ꀌހ氃밆﷤芞⣖瘋Ⱑሾ瀩犎㜵葂ꌭ컒뛰炻兀驸槙Ꞙḥ售찊ꝷ䖷⻝Ꜧ躐璮쪞ຝ⋫ꚫ莌噺熮픇嫯\uda3e᧢᷑ཆ璛ជ᷑䰜ᴻ뒙욭唚櫢㗦갃龐윛蓔賞村͈禰內ᣴ᪔橉ꥦꑚ镪䶩朁\uda96ﬣꦓ矷諪篥孔嘻˫׶ぜ̾┽ﳣ셛㌌뤚僧㗮㧂ᗣ黶㸕铧\udc25฼鬋龽剰뙯鰷嫜漕솢ઈ探睏ጷ搡퇸쟹洨씡⚏挩蒗鴜핳葛ꎭ꾽亼鯃ꒅ瘕ﳡၽ潋쪇䚡纅혀顝耍藮៸彦꒠ⅇ廴ꮿꋔ⩠乕뗴湅㕭ﴖ穨휳a疅\uda40㡝䗒肭Ἶ醄첵ഗ⌐굆緞ⵧ\udfd1쁧瑝굸ᤫ꺟뒵蓇ᗷ﬿䓌읳洂했\ud817䷵㾲뇴獄蹭뼅\ud923㞮痐鏾풺䧛\uda41爉ᐻ鈟㎱阁⳵龈跂怶Ρ᳎㗇귥2洏ꫮ髭㬰ቓ岾鈐୪⨸ꨕ쀡ê蚐蕍턀ᗆ洫呴ꏚ츘蛵삳␆⤍ఐ⍫㛝۔憗ف⃇䞍투鷖⍾蠲㞳ޠގﺧ좥녲꣪ޟ잪㝊쬫㷍恷⍊喜계瑯廓坴憼껲䜈◩꓂휨뉟崿契趠盫봪ﺻ섍ᮼ᧥⇰甩硕ﵕ䰞룉ట鬉黩簗뺗껬骹ೇᙧ콃\ud9ee﬛ꈜ⌾⇝嵄ݥ삛캯溃∺ေČ⌀΀昈ఇ䭫쀎⦰ਈ܀⎃退‽娯\ud996〕\udc9b䅟逽䇆퍖ଔὧ๷ᗦ鴉并ㅡ\ud8e7ˎ馶闳笙康떕\udd87㥟賙ꅷ筟單粬⇐할ꈧ殚⌕惂犈繴ꯙ塲\udfec\ud88d僫힝煚磧埭▻駒囻\udcc4캲셣矍\udc23Ȱ᭷\udf9dṗ헵댟춿㇢\udbe0崬状퀷た꒺ෆ잹㭺霤踄뀟」蹀Ӻ鴂倏凜惨艸괁휣␺䲰䷹᜸䙑睜Ⴇ슜엎莦鰲뀶亷괾槡띷땭㮁흗\udcafॻ쫨韲⾉糃쥛櫬켵໐秊斻㽎๑躄꣠삃譬执懜ㆳ핟ޖゟ㶐즗ᦟᤕ駏뭉\udcf1뛸込눟쨌䃯칿㷼뮠¾逰஠⾀뤂樟鎑磡㢰荐ݶ캀꼁꽕먤圧哅秝엕𤋮\uddf0應小灧䤋揞姟懗篋鳐믞쮇甝먒䂉↾⽓๜瀅浆∩㢑ꊊ迹夲ී簰\ud862﯂⼯먖\ud8ebꛝս揱襶㰸ﱐᛨ荝ፒ雉㕤兀\ud800瀽턀菒༨㱰Q襮绒Ӳ힆⾁㕖𧻓픞햱拹㽀廉﵏⃾㥋侽盢흛Ḭ蓯᷸뽵⍬豼뫨꺫걍볽쟗앴ܽᜡ찤냾⧧ｾ\udf6cᝀ㽷\ud9b1郝ැﶅ⼜쳜븨硰澉㲇ᦽ쉝ְȼ蹅㢤\u001b肙䢆든挢쀊嬵ₘ㸃뾩鏇隙䊮そ꒴ㄧ껳㲊䥊\udd33烼╉䮩ꐈ䀑Ꙩ봨Ɯ⥬퐂倡 랈노೘隀ﳴ儀⼼\udb68鹋〯⃐覄嘷 ᐯᜇ됄ꐠ⃼惲␯塁\udd04쬫䁧ǐ\udfd0掠঻ዹ賀肫箎폨ꁴ槣⯤㼲륃켗잵쎒ᮂ式ぁቜꑴ㕤ẝ㪈亱ᝏ㷛㳍퍾೫뀐\udebbⶔ筼뮊꾐阙ᆟ쇵묘㚐뵌戾蝹핸眩鶻뜣킇ᚭ饰鷍ꮹ鱃鹖鱀\ud974抑⑑莄ꟸ⯀褂㸄뀹-檼ݠⴀ錁怎ᙹ\u000e˴ٜ관㶟퐚\ud9cbԸR↌覂佊ර瞮㼘痝鸾曞鴦淸⏜칰ᏼ뙐땚ᕸ쌚쑤ցᚎ흌늯꓁捦苻㴀歡븤ᛀ쿯盕償嬿秩辟瓹ꭄ뛰耛潬vᝯ࿞∾绿\udc2eỽ쿗痶腻ㅹ쿋ῢ㴅헏耼饛珈༐\udee4둞碾摓ᑏ琈8﵃凪瀃琋䀀삍Ȓﺃソ酴澅឵콷鍅췏ჹ㼋\udcaa刱⚷䔏ᩳꯦ꿜市ᯅ틬魿䏊᭦붡뛃顯孻毅氁\udf25\udbdd쪯壙\udd5f쳱錨㜚֏꫊䍀៑먗頽툿Ἳ暀揱뺙痮쨿蘽旚辰ꁨ﫼῍缳ﳬ耆㸀뱣\ud80bုစ˓濙㭣圐ۀ렀縺鿪涠릦泤퓩廩蝗咎矝쾏勇㵞ᖔⳎﱰ쓍폟\ud9db㷛蜣䂒萖ᖸ\udd91鱠헂⍄ਧ羛븱믋坡瓤\udb61鞿ൡ磥쩮籹｣ᔿ▼㗵伮䃈҇쨟娧椁ဦῘ簕뻓쁎䊦沊ퟆⶭ籺䃏魝೰蟫彳﮵흟塼㏻䝘九緑඾굠잁⺑㳵꽟錟╷廾﹭浽⁜➚୰὿\ude81쉁\udcfa䣝켰翷횋䇛ミ톚ᰈﶯ㶓ૐᬙ弽伊縜ቄ苶ڇ㙒署蚉뽼ߪ伓竍刯ꋶ\udfd6恢淚\uda8f鰜Ę￢漢ᄯ䣽䯑⃋艒ﭏ䄻⼃譪࿰ڠ艧䩥ᤠ鳮㨤栿逼\udb7b➍᩠ᄂ玽䃩〶틋禠튤㒽\udc79ଛ콊봨ʫ펦猅拈ꣁꟊ蹭\uddad뫞歷꯫ἆ뾱ￅԿ燱봾敖봁㚣欏諮瓲桩ꀇ鈧춣캼䪲꽮\udc7a衃\udebd癚᧯ྪ긆￭혱픩蕊繲ኧ휇鈼▪駏쏲㸄\ud8a3\ud8d5戞᧺鯈铩벙鍊䘅쐎倭槀તⴀ椀떤뀷㐲\u001e眐ሀ肃個牅탦㷗纡큗孓\uda8eᐐ$％즯䕹苅箃齷疚䥟៲ᕲᒙ\ud838轻ៃ蜉紸璗썫윘ခȈ䰌ꅭ䑉⁘褡ᒊ䈉⢾ἣꓪ㠰약鬱ᇻ垷鱕﬏뗯鎮맍뻽ﱐᕿ씀ퟳ乘\udb63ᴿ瑷쯷❽豖坜䬋溜ﳅ㝽䅷矓嵰뒵\uda90琟鑥胴秮뺽셑秽鱹⹤Ҩ蹱玡폵霍퐇쁙Ꙑﱮ㨓瞅鸟Ꝛ杴讁釹ྤ엮进ា㼼廕﬒\udc97ꤿ⧬삀꧹⫱ᗬ㠓너⁪ڷ)切ـ⟣೨᣷ང㦠令着좰䖄뫐徢꽂繢ﱟ犗큏̟浞恶埬꣐힢᭒劲祫ꎯ칅馣⭮ᚼ涺렶颊倈촺뭇滸涝맺當칕鞯⽮灵∙滀⴬齠躳䠒ʸ홓佋聿ᘬ䇽듸읶შ鯟侄罛噆籣喝Ɗ㎑垀⵩䄫ဃ┃ဴ괣①Ì剐ڞ䌰ᮐȀ㘀숁殹枴૫璏䀼퀜\u0017vꉐݰ汳駇鵍⛾腼寻榨曝憕蝁䓺欖뚣褻쁿ꁏ৮ᎌ䉸巧\udece箢츠¢慡脇ෙౘ⁝䂰쇂瑅䴈靐䖶伭ﻧ밺맞焾쳻ꇿKᝍഘ맱\n倫怅䃭飕ί疿兊臏㟮杼ㄘ鳷뽦ￖ꺞긨婠紉ᠽ\udfff鞵ޞϴ鹸ᒵ\u0014ᵜA㽿뻐πڠླ숱ᝊ๐ӄﭡ༨菳耐䀱~㝘廩ꥡ僚⊎⢏ퟯ렿呾虍蠆揱엣远聡⽊Ƅﳉ碓Ջ쉁뜠瘁케麀숉먍혁ꐼ₶䂸ߐࡊ豆輎ጀ鑠풼䐄⫶៮†逸뽕滪붤ܱ䵼邻絮ዬ\ud8f9᭷붧䏒꾃༞㻶鳸匿\udd87듳਎牝봻켷䘐↤ᵃ癶Ɏ쭻瑰ዯ\ud9c0䂏睾ㄱ␂뢎⏊㞟胯᪱볓㨮偍쥇顀铞ﻭꏹ䐂蠞鷚괦葐䁿臋ꣻцਦ䋿녀爀홈蛱쀁頋䀎違려E㐬笰券ើ\udd7e耨熄詴鱋ퟳ\udfdb䶯潷ổ逸猋쑷ꑟກ㬌먅䒒傫퀺瞏﹡ﺃΦ狐뜉\ud977걨兄뗑䚑旁刏⒯琩Ⴆအ莯烟\udd60奟廒믽쮀㹷讧篐섲㇢\b,ᥰㇻꇟᮁ绌鷲翫绅ﾳ삥뚿\udd20뮼૿츋뀏Ӧ\u0003︆䳁䋮퀚耵턋耝棘͛荪躈ǵ몐䁀焁뤃ᅰ쇢꓋纄ᄢ㸸㱈ﯗ〡좇頛⨾ꅕ囫蕑⇢⻓讌뼘㙔㴕Ӑ썟邗畁≜甇퀙꠹솆鸫ꀠꃠ࠻珃流쪪꽥⤾䡵뻨誇ꦈ\udd0f툢鼗䄠僧냓䭏ꂇ₁\ude83萌仩῀ぱ鼾ﳏ촄\ud999\udf47뿳嬾贀䁛\ud9f3㇬璦︋胦ာ₞쟟쑘㠊襠ꌎ췼ﭸ磶栞콐薊坆籛Ӆ᤽칷뚅ㅺ㌵쟹栄箧ດ吻瑣텔䆴ܰ詮剢ⶨᵖ䮨쉠୨㫍恁驇\udcb6ؼ鋠ڐ鏠摚五ꧤퟖ糖쥗셴䇟ֵ䋼ᛀ߰籠￁\udc81瓵퐞酇Ɦ휜詣絃䗰寠迁\ud943犅︈Ȕ럌譬♗屺㣸뀢栶쀥ꏗ冶᾽붙绷뿨砱ﾺ⍧﹟\udd5fﮞཿ㖾蟀뒖⃝븅￷밗ྛ\udf71䱻᳡릺ቸ㹍⚠械䜁뀅렃老쀚⃂㹝ӷ㋄ꂋ\ud8fe陮㱚柵\udb81ᤴ뾨䀌☘꠴퀽ヾ㩖Ꝥ컖莓基躵\udfeb륤͜鎿Ꙩ仞땞堢矲歽夓Ɤ悦↵┪컣约㺙‛R髤뢂땔ꩉ쐘橓ᓚ傭ꄸ䃓鸫䧞ᖽ✄᫄ഊ颓鍅懇趓륓惄岜᪌샏碣卖\udacd䰻楰㏠温챓鲧䊲ઝ읪縨䫀鶭Ṿ泇ǵ䃔Ȗ콑Ẇ诐ໄ쮵ጙ햤ᛋ♜퍑꙰瀵笡࣢쒇뱕浆髝吇婰퀛槟ࡓག⅚艮獈ꔥ숰ℜ䣀呂簘턍덊큻꼠虶ﲈ䭚઻ⴧ\udec6걨吐ﾔ䇁넌跡쐪咬䇁ﱴ浪웹뾠贔榼ꈃ褊ꭌ姖簊퐠䨄ⅴ悰ɘ˖馡띀⿂ꎥࠁ欆絨ࠁ둫䊙舟秨̌ఋཀ໔瓈ﳱ樅찷툐퀰졅悃㘦䌬㦙ະ\udc77蒹绾똜洞࿱눘ꮈ샤븑胰鍺䕀—☴⨈新ᩂ쎣ﰃ䴍밁僣\uded3䕂薞ᾯ䅰噠쇒ᔙꮆ荣긕\n\udc88ꨗ긷ﳷؕ햸ᝄ죰壐鏁ፂ켄ｶ騖桵麋䏣魞끼᪴⟽ꄀ㒌舄ꀇဒ耭쁲L´懪᝞Ű೒ḟ狦⁃ꇸ膴䃤筅ꔵἰꨶҡ৖ᗅ휔蘐镾䪃桸萫䁡ܫ憗蝡뙼䫠찋ᦀੜ붆緐戓⟍먲‬਺춂厱ස꧄⩇诔ࡺ熽ማ䡸䂨ﺄ⃾䊙ꨦ\ud96a鸽䤶ӵꓚ枱忍黐Ꞛ聴\udc04䁰园⟐뙑⌡\uda75꬇ᦷ쵮퀽Ｅ邎㴅ᢗ쇍뫧✶楽⪺顆আⷔ谛瑠냨瓁쀤Ցܞ啠硇ァ⯬궚彲㠔収ᴬᆿࠚ늩Ὸ怈ꀣ쁄䀄脘퀚ўBꇽ粧颕ନ슣齏ડ뽄っ蟓↋ረшࢰᄐ⏑ŀ袀̂▨䔪玮鴝㱚姦텋ᢀ윇긤䲞룮೽횉ꣅ羚矂孔騔ﰵ줋귮냾ᕺ\uddae鈗ᶎ郎㚇ᶳ痎\ud92b쩈살㇣胭ุ씪ᄻ滠迡娃萃阖퐈\uda31㼌癧탎薩㓀ᠯ\ud8e0᫈렂㷔웁섓猅耬궸䱉傷࠽悗慟̗̕ᛸ㙮撡궶㻇\udc81\udb0fשּ⏢䞔詉ᥒ┤畈밀㇘擊㸃š砑傉ǈƀَ깸ैᕅ廠௘☇騄耓㰘xₓᅰ茮ଠᦄ㌸梘縰ᮢˇﲡ쇂낗Yဏ쀤䇲萋ۚ೾ႈዐ鈃틴堩塶䑣酲೎䞔䘁耨㴨⚰鰑堢ᐆ䈟ꯅ䁪뼣廪ɍ碛ഡṫ튄控୮ꫬ跹김瘙껜侮\ud93c곖ﱬޚག삪퇟꾯松\udec3顆﬊倉甩葨耲Ↄ蝰贎ዄ鰂肈혶៍葇蟵ᄗᰲ䎶詉ᇑή荛ᑈ஀ᑌ܀㔬Ⰰ둡꿒剨ꐝ့‖\fꁚ펮얦芤㴾ⴳĐ꤀䪄汃㖱悲㐌螖ຍ⥘⯇蝍炾떃믹᧑ᙧ\udfc7ꁀ섂⫙ঞ㑠䐠៘馡ః㷧깙센衭犛뀬≏䋋谎ෂぐ鏞鯃싘氉\udfec辉災댵瑁⌇䧦褈⌳ᝈ송㴣꾅䑫ዞ죇\udc2e竝\ude16迀㤭廻娔盛ᚱ䄕鄷퇖䓛⃞얲ⴛ룠泤묢熃 㶐ᘈꨔ㢕쀮䞠ુ웤巈鄤鹄嬨퉣琺뤛죨찿떹䋟果躾ઁῈ\udbec링孡䥬ਾ\udb00冽쀡䖔豉Გ㔤䈨\udee0῁酆垒藎訳ᑶ⢜偸ꍈ\u0012襺ъ┸⤨觙㶁劉䨢⌶륯䢇锤ꢲ貞蛊Ⱌⱌ㜸\ud9a0ᙒⴊꯏᶭ⃁汨큇Øˤ͏\ud8e0㒨ﱖ栗䨊혙ە࡜ꂥ绸ꗰ䕡઴퍔戊祶画잘ৰ〛毀\udcbe繎벝뭫늷⛟뮰쎲⓹ᆳ䛘㞳꣘胢↕심ᨌ샋격⣮ત葆晲ജ鯊쮸袂뛑4稅萙詡ǀẀ榀䩀뉡꼥ဆ怭쀻·ƹδØ⺠춀Q䘊ᗃꓨࠃ㚋㸆鲅쁵⠍쉴萘珒ဗ흄圳紑ꅽ뱸혎ㄚ㯇롧䃩컑╧㧳헍✗쩻떈텺揽≹鐃灡ᐣ谩အ虷䇍ఖ఺ኸĖ夼ﱅ漌㻪뻒⡢ﺏ鰼⃝ẟᄇ㍘ꆼ䩍\udac5嵧돗ꑴ䬠⻧粞ݢㄙᲒ쫴瀷⾁랢隅缉娘嘆掋ƕ⵻ꪬ賮৺㍤勰ᶑ隅Å\udf63؎픞〃衿ࡐ벣ϝ䖱趍ᰀ㣀똁莉䆏䐒Ꙋ죨燷⏦壃뚾⒆◤欵㐱ἣ十粈旅౿좂ㄝ좁䝟脅ᙆ㦁Ԙ봀#䩄⒈ꤕ刦ꑽ肈ꌘ욢襣ᖊ⯺묘짠屢ಡ丅琌鑞凲ᅸ䇒謓ᣊ㉌唈椱犌匟ጙ䱘ꂵ庉耤᪀茫ⷈᣠȈ㚈對踲þ㓥ᇱ씵ƕ᜴씄妘뤁搽ᕅ䨋혖쫍呚肬쨶鳬옰ᒔ⧌溨줮퐢ꮢ쐃猙瓗ඣ낆ᅷ䷍䓹貵ᔄ體䎿჎皢宵됔ᯕ쁘墴鹨䙺見ᄝ탋뱘ꇽꎆ熴닧㡘梌넑ꏞၰ瓨౰ǰᕹ㵂䮫鰠瀌Ș䀇䱹뒵]䡿Ǎᔭǐ鶀敨怀ᙂﳢ娵洮郲턋ಂ﯅熭ᠻ햠坰錑㷼ܘ暕洒㣊졇棫㛹屗㥶༗Ꝣ㫡ꖅ㡐먹憒ꚃ䯪㒅㩕Ⴅu堯皜ᓘ䣬硐鎱믃坆\udef7崜隆뾠浠į詻᮳컿뻏ᯡꍂ但ಌꮬ㈢὏ﻗꈖ萃賾ᬲ⯽邓态䂃㚅뺌蜑郞?ꌝ욧′肎㽜⓰ᒀ교뵂涄茐䟊㬍♚É쐐ݙჲ⪜唆偶킑쾄洛蘥鱛瀼ㆋ\ud9d9씑趻ⷝ๰㛠볣䠂冊᜝ਤ屼⢱熞\ud9e8씢趨ʊ㦌奈嘱닣煇쮊너길鑟ᢵ焇좄쓒諗჊≌猨뵱䫠ෆ犈匓쨤\udc7f⢿ꆪ抅䑂썆慑ሗ钨舄\udee2ꄉ䃨쟐㱮냖嘖鰈䝡བྷ㍀璬浾๣⵸⑌〕ꀘ뀩蘩祥ॵ㇖ᦍͶ㧢茺娈瀘ᘪ↋肤\ud8fd怲̄ꀆ東隍란庢뻈愈ࠗ쐿표眤뇗첸\udaa5贒ẖ㛈蝸骆翘௺ꦱ刀䐌逷衣肵Ǩ͐ѨɁ䑰ᣨ劀⶜᫇\udcd3淫쀂\u001cဳ㥖呮ᖦ\ud9b8潘鰖淂ݸ됍㈛끊ᔱ넓밦읅ῐ㎴䣰揃ᲅ汃䴆⨗玪䁰恽煅ᎊ艈ି\udcc2ͩ摴䙁뿆촕０ሬ䖟ŀॻʭ匉嘿✾⫄줁㘧䁍ﳫĵ윿\udec7㳯\ud97d赀釿쫰䘄ﾱ뿽뀦ⅵ삕ෟɢ죗텅ⶈ◁謠鬀ᓼⲀ⨉c栧耈뺎첆鑒郳ᏽ땒昄⋨椸렱㰓Ⴤ鮄쐕ઐ䉆ᢦ燘戮˼譧᠊㢌圸툱ⷁᑓ⸲ᑵᢘ冴揔␃ᶡ⦌娨봉㋢煄熈圓오鑊룾㇪䙫贓፡⦔昘笉㉢㥇즎騕쉊飁共Ⴔ4莡࿍骳넚้䍀ȥᦏ锝갴≎࣠ኬ쑱ᔔⳛ붘좑﫽鴸\udaf5瓪鄤ᐱꢱ㸾鰳욁⍶ᙨ₢焉ゆ嚂䨥㠉幦뱥䓧凊썅觴捞⸬箻壮냌ਙ㞉쳥턵뱄裶莋㨅耕ఠཀ᱀㿀ꉤ턁态歂ᎉ3쀥耳ꅁ\b͹⨛隀㤀湀ଓ䯺売૨﯋耇칪[섶䌯軘鿧\udcbd議꫑ฤ眏\udfcb憺圾孜䨞ူ⋼糯朎ퟣ筅ꉣኝᰲ‧᫊ₒϮථ卄ઈ㫒ㆡĥ薴︰⑘⓳뇋莀❂䢼抹⵲䛤뎀쯣좛븘ㅊ৽⌐♿猽ᖉヵꗨ罢ꙅ恉餔䤻掷ﭐ熰\udc96䔐余艁⍤矨\uda49浀皃偋\ud914踬쐃␥劉¬႕藉㐈䀩ቱᰓ臘厌ᒓ鱗≑䧂጗끊䪔龆♒璄륉눒쾰⡊傕ਦ豜⢺㇔ᒴⓨ䯔醊⃒岸ﱑ옒䴥顎ǁ愣屈飺凢捭╉衰鬦⧂玤ꔱ渒燘硈뼖猼4ﱦ肬ᄓ৐\u0000㤟㼾癏Ԃ◻踈鼠❮顤퐽ﮛ妌꠳徜䓭ĉረ䞛ഢ፬⧢橀㪠榒눦寲뀑樯≧꽜˞馛뒓㢲䡘틉涡鹿䪆⮄䒗\udf8f肉Ḽ⌃ﮇఈ᫑↲禗泎裴ⲉꖏ഑\ud923Ạ塃쩓ǈĔ葌澯ഠ❀洒됁䠀鑅ی拏逆䀌凓°ұ任ᓜ貀既ꔥ둆阌괗ꈠ邺鈛䚞丞㋢妈ﹺ资霺\ude4a᠟礡졤佝ᰖჰ邃⑜濊ĝ᲼⨨훠쉠侷쀈ԩ綶ꄀᏀꖮ袺䢗壘惩斩ف瀀⑰\uda9a簯媎콤䧻茷威爹㌒翗尩栓焤ᅎ殢䣐ᱎӒ⥷갠筐Ԡఠᆭነ撠㵸钀觓䠁巛逑᜸ᄠ䕦谅ⱇ챑鸏灒遆뜵䄐萶辒რ줦掰䔄众枂㕔摄톒䠋鷕㘝Ḹ⊒哄짗䖺瘅ক㮇脛䋱䰢咺ㄈ턅椊䁑偡炫읖体㍏鵤㺃鋆윉沚ᨵ‖㑺¦粴等௑칈冏ԡ☼᳹㧴墑ꇆ⡷위¼ꁀ㥭䷘鹵坪畨ݓඍ㢞Ⳏ玩숟呇摒໬ᒻ\ude7b蝌䦈儰ۀ⨒☛怡텯⥻쁭⿊⹴䛰쎱讣ﺧﾎ묜򦀀ꆏ\uda25஖鲔⸁ᤔ扩ꓓ䄃鍏詆逊驐⡚楳峺﬷䩌頷\udab9ミ岑ꍼ䏨ᒊ뺄刷؈툩꛷亦逽㚤䈱ຎ\udd6c炛嵳툰覐\udb21蹁Ⳉ馟ੂ镰㋸䴓䏑潢冦㰋䚔ߗᆋ횜䷖\ud8e3䳉悅읭脴鉉쾢⢧鉌鸇ⱈ㢢녧誓솊䀖者šᥧ⯐謈爠慂뾍鼌똋鐒ıࡸ腣ꨤӨђᨦ㼈ऐ䔡⬧ᐅ贈祃먂衫゛函⎘䒕֚బ଄鹉ﱓ㰂ܒ빌蘹ᜐ並쐦ण떎⋜ᬢ≱ᙐ쮀厉맃丨ಐ家㬝쌉㯧ᇆ᛫优䏋伦\udc95愹蘑뢽煄肉샆ꆤńഓ뾙໢揩昁ᨅ赌瀋ᡒ匑ᦎ攰᪀튤⌬ꗮ◢祌촨ᔴ뒪諅鎺⬗鶓ኡꆇ霆ꂰଙ\udcc9\udd07䶟䱁㻂틈袄䬊頓㜄䪨륁蛂泆袕⸞≼擭䄊팍撚໽ꯊϱ㮘긞᛽Ⰶ枍좓⫟⩭ႇ䛔⑋➔䠅ඃ⺔೸ͩ喓錹蜌軮洠䡻䒘ቛ웛䱔⃭⎼做ᣀ⠁骐∎㠞耺‴쑋Ǖض࿫钷갨ቲ讒ꟃ몌䀃怨ÄƤݙఝ➬桴뺱筒ెඊㄐ둰덞﹇ꖶ辎鸸훢剴ﮉ⧒濇䎦朌喐낗屃ₘ惛䈖苒⠼ⶨ氙⃕约闶㬚Զ䖸ⓠ꠷㒾犮ນ雀ᙦ糌얙쬲摚ⅉᤠ矅੹⥇ꎯ\udbfe쩨棈蝪ᾦ䲎纕뛕節윤̿꙽騿基䊱᪂3箂佇儀\uda49‹뤵怛㥼荨薍д鸴ඌ䒀࠲춋⃋ᴌ뎘┢鐍恋Ꝇ\u0011ࣣ԰ޱ弼문뀩笐䄑耭艠뽪ᤲⶅ☣࠽䟽㞒฀䒣塤✒䀄鱓虻ᧉǓ觰췺ᎎ엓᯽ℙߕஉ鉳ᆖణ⦄リ㌑㣝ȩ࢜ᧁ㽔ᔙ編ꀛ꣎䘔将䀱쁵\ud878撒琾ꮌ∕븰럔蓂瀘퉴쬪䰠膍ꘔ쉬朲白쌥龓ꬰ셎츳끫쩳鞈ꢊ큁镨烝Ի⳯訃㚃㠡ꄲᕄ蓎઒ⴼ♞띈餱剣▪໕ᯇ\ud92a斷Ӊ횽ᖧⓈ箯騎ଣ꼌馞掝蓤䴴ᾑ㒐ꌈ엢詥流횞⨖ꠗ⠆걞˪꟔亯ጛ욦徨轶浒鍻孊榞贆檖㐧싺ꙦʌǼች㝀妤ﭔ肁而瀆怍⑍肪䄁̐Ț隓蟚偗঄睬글送ꀒ㰊豥ꏻ㦖଎遹㽪䝿ᶙ᎝୘鵈᦯\udc24ﱕℷ鍱택䡛ቅ剖玂瘔숡ƪ誀縏壘☟吒駪⇣䋲苹鬸⟦栤뾙䃒耤崣帖ഽ㸇聟뉿搮Ʉ鵰㔊刴쎞冦鸉슘ﻏ੖㒀ẘሉ✑䭾運‐椤끱₂쟨꫏▙ᵒ陔畝鰍킒穨胡䙘哾ᯯ愐죩哣﹐甌ꌤ\ud8a2೉ࣿባ䆴¦蚈艄⩨䶜㲡闃\udac1\uda88਑尞䤒催좉잝ಡ鈀Ŗ缄㲈ᡥ꫊踡ꬼ㢼焚逺눸材ˡ鯃⣖倧羡圭Ƈ㫗ӭ欬㙸財푶뎼魈졵鵽庸驀䓠懐鵀竏ᒮ觉ᡬ̿䠊욐ոЛ㶝豜탙邜뀚䛉蕬䰦㙕\ud979뒬昦쥅沛⯑㶌\udde2ᠴ㍧抵籑厧蓒煦⃜ꔍ۽ጋॡ㢶ᡘ㸳춢揄ᤲ뙈擪񮧌읈팖餙ⵟ蚨媣邎䣯ⴳ뙒䳔ꤋ堛ꋐ賡ⵚ噌곉빢猥軌ⲟ䐫婌鼀僢ꇷ锕॓㨷때\udaf1딳ዅ蟰\ude2bꩨ郅䈇뎼燉晸씘֭ࣀ㠀㶒肋퀎퀑畴䁿荺Ȱǲ䳰᧠㎊匒錳嚋퇉ᙋ䐝砿橕馻鋶◩듙逶⺴僘\udd99읓箄쇈벞\udec2첛㩈玻䘮鈴Ġ⾤洼䦡蜅촢촀鐽녚ꁰԜ愤ģ鿢⼧뇷㷾㬂潸䉌묓䜶챝᳤職汱䁞ൔh珘鑉្턤㰏᨝蔽ᩯ᳌榯싱☑䨓釾\udee7述쒳뾦㐠켅乲녞\uddad슰瀼䵎ῄ멐弜莄촅벏乗⳻ꃵん䄅ꃠ얔㼈ジ洀畚˅⠉㒔萿堦偡ᬹ죮ꕴ෎洌鉮鹳啦냉歅頦겜㌂៕騗㞆硜덙舲膇闍ᆗ᜶확❻套퓤机캡ยန㙜딙ꆴ㑥ዱᰊࠀ怎︙¥玁蓗첫鱣⏵⦌곚畲ⱦ⊴擩䰥ڪ沌嘍䲺㛍鯗㜶炨退퇩쯂ꑂ㥎컝汓\ud97a鵦쨉騕㙐拜쨂≦螊㘗⼣⪋沍䅭답䜔疵㻛멌펹餲별켗锣\ud840壢ꥁ挊枕丩頊๞躳ⰺ䛒ꩥ㑎檒턣癈蜡℩扷敻쎣꾻㌬囼䶜ࠆ謐耋送⣭s鮴Մ୐൬喡㏘澳源ࠅꡃ頌逸烛䀉诜鈇ⳃ뭿䌑쎽ꎥ㲝伨Ჺ秖甓ꗍ蹎郹㱸竔ݢ轒ሀ㣁턆ጆ⡠㢪↭샆薸涼ᓸ澈ꯎ삒엦鶈묧᝘ᩕ롙礛猇䭐ⶠ哻졌銛Ʈ쟒慧⅊羚ଽ蹽샣셈ዾ뫟䢂㌖峐꟩㿽熦቉᎘,乑ⳡ朗狉摇Ⴅ齯㒀㽔㖰ვ闫漢嘂ጀᐘ㠄撚ꅍ쫏聪쯯㓘鈌쿬⚁➣㣀∖ꠕࡶ䊆ꗹ䈌쎥ಈ࠭⹨㚀鳦끉茐᱈㢻鳈㊳짏鵤콨㹼Ｙ详⾑鱟虥쬋央녋つ͠ീђ뎓俺헳౦￐醞絉⹛饠ڭ䂷켕מ踘樧ѡ慌䔳ὅ怕㾵逅褖돣榕칊欗⑾攧ㇹ决櫧飉ⶩ挨膺\ud954심柏족麛⧆睜闹\ud868ퟤ䋅ꢎ䰊貤傾㊅萒놛鋅큝맼邩Ǣᛦ⯰뾑春湔咨쥄⍢꒐諛鎪ㇾ掘梋궄➉ꐇ诏ࢴꎍӤ콶㋆跜蝑睳綄㷏놄騃薭哓ಆ곞⭝駨㨙韜웱ᙝ鬥‫\udd9f爣뱊\ud828쁻놁϶꜠๤茿뉀඀辁⮻逃ﰋ⾖猎t贖Ꙉ捑˻쇺ᜨ榬䰊㟆㐏懛晧ʊ禓鶠㏠她⁁䳘껑㘣駦㹉\f㥗젰ᰠᇺ쀄잵ߋⷔ棥Đ넱᳕㷩崬蹺㔕톔玥즮阄蕑瞒䨨퓛䋊༯먥볤榜环ꝱ쯗鵷왨䏴\ud8b3㰔뽏ۭﰤ᱂좉㧰\udc82៿䴈嚥蒖ₘ垠㻑⺃뭁㐀㘙气鰙㢮デۦ薈щt湨㗆巨﷧ꐪ愡ᆌ숃堆ꃵ잵엥ђਰ㶌榈醠퍃ᕦ䝉爢虊糺幵௓캓鰐묾匌\udcf9洊ﳦ៍햜ᜤ빏ೞ蔦누晅좵鐿⩡䞓ҹ爐蘚\ude99섹䰙Ǜ⧹新꿥멦␀錀㠃Ⳍᾙァⲁ碌ᖘ캁꽗✬뱬ꚹ嫦㰩䶒찳깛싥識쉳既럫鴝ẖ㞬垠邈云᠆鮓驱ﳩ䅪贔ۖ첿齛㫾呌颉魳扤╏覙氰侫Ꝕ킩Jꢝ켰ᓬ㟓뙌釙礲鮰⼐匮那ꢏ㰳댌耎෍Ǫ⺢䠳捩欧껏겟¤䑢ʿ릭鈁⦑'凰㄀䴖鈱樀㴋쀇婱긗Ĉ๱쥑棐城씀ꀁ穄㐬洓公坽쥬ફת⯍恨ꨎ唼춃蹧쇈켳挼\ud89e텢બ抦薆ꉓ㔆窡畂蚐硵驈팊ي삃넚୽ᒁ伣酳䍽鶳⨹႘ꂥշ泦瀒쥵鋞¶䫕䱆饾쎎皼폑젓콄捉쒘漻ᩖ拜夹讁왒シ逐낱䶼ꚅ㊘\udbe2伃洀熰᰹硁憰摷䊘蘎М݄ᴐ뤥艒䂂℅텏䱥㦆ꕧ숌쓙욓ၽ苸Ṑ\ud9a1綈쨖煟ᓹ암㌗ᚉ䴍꭯㦡竢횅ⰲ௧櫉\udc52᜿煱곳㊦뉳誂炘剰ꊮ厙௅⹤꼗쉴疝మ䤸ၫ୔朾⣳髸댓ꄀ満送쐄挃ﳿ엧଀铕츂往찉捜뮅좭έ匍艕諁७ꔁ懈䨼暓ǎ䀝ᄬ踒ꂩ땺䈫㾝ࢩ䁬⊫梨툑ᝄ䩄匓⳱㔒Ꮜ戩䐢ꜰᐪ듏弄뎿⶷ⲑ䀂튉皃射㷌​⡈Ռ誚꒲⢎ᠢ⨸尳⛉鵒ꚪ䁛좷ꩼ㤅በfpࣸᮼ幰뿀Ꮸ㘂\udc03戍젅ⁱ껡\ud8d2ϕ資鷮快㐀ᓈ퐀䴀뉖腈彝䕤瞬᳚ユ枒︅퍣犹墎몔켡佌〦ᓶꇓ疼ꀢᯄ坴ᅮ릠䴂욇儈搄幦芋\ude01謥鐥䃁䔒쇒滊䆠퐅蹙阀峊鐸⫂饔ꞎ橢휅\udb24ӧ✿ᙯ芵ꄘ됋ᓢ홨䩴뎩䴤ḉ污穆갟इ覸珞ꐘ䓥麐럶냠蜉薡ୃ榞ꈅ푏蠟൑튬ʨ圸렝ꮜꎥ䪳㘔긬憗椗친煭앁獮阚쬯韐렓ꍮᮖ뾋辫엊䙪岛ꁿ䯴ᔾ⫵駟⟖䬌ᲀ됀埪쌨㆗왢㋔뉀䨧⡅渄ꌙ慭ⱥ伊熗왚饙╙꧆샬ݺࠈ֒ဢ蟳䄗䯷쉕嬦饬肺旋爙隭콕Ḟ㚎巼鑅궳ብ꿅⩶⋿㑵䅠䏳Ⱍ雄ꋮ癸汪刨ቝⲡ訌钯狝٤ㆀ履툸䍸鲋㖔䡶홗洷奄邌夣䇨ɒƤ脀ᨾ᠀䤸嫓㰇ꀂ㾈䐷䁡ꛂŔ\ud8b5ꄲ쑐㺻锂뢀쯅鄀䀇ᔈ㻛梿ⱝ揗쟙⯶尹쀹弳⃥䎔᳉ⵢ梶鹤狡㋸韙ੳꤓ쳂ຈཹ禠艢삂嵈룚恐⡰悰⇊䣴쏎咔ꐒ羢뀩䗊⻄崢֑Ḯ蹇諉ꁼ呥펮國↹俯Љ㮬宕㠪믧紬摧狰㺂牻際쥻\udc5fᭀ物케象怇㔪ኆ䀨⁊醣肀夁࿃㦚淜⏹铊俧匨䲯蒼㉤咋ّᏖⷌ꽿₈圊ꈡ㰫琄෶ᅑ怿♯뜂ⲓ뎀ᝎ쫮薵Ề≃͒૊鑖㚜웚䥅듀턿犹ᐩⴍᐖܚᨅ㵥䏹ꑅⵕ잡⛍檡㴙㘮쯮棸嘶诐ᘵ넀悹㻋胤泏ຘ礲㩹㳈㤶ᰣ閽嘉멱顏儅輓ﳓߏꔁⰶ狘騩ꃔÑཝٽꍖ潅ண肥钯짬犪娲⫣ꁨꨱ呤迥梢촀㣊阀錪첮⪏㊨쀲὆胩⎇ꕶ쬫渽㏨륐ꧩ洛ꪇ説镝㊩䠬쫙喋⬚Ư䳂慵쮣鞋ᷩ븭婅곶᭬㇘▴抙⫅䫘⾰倲⮥怟ẕ⸊突㭗騝\udcbbㅳ\udf5c엍䯳ᕿ伇ᶴ㉸ᶊ䅤堔؂밀瀇䐖몞⁉ࣙ列ٸ܁Ý㏀⿅䬀췓㹐⹗軷䏞㨚퐭잵ᝇ⥉価࿵沚\udad0穔碤᎔岏쫏᝿⼆᯼ꔮ卼胚쀫빘茫ඦತ娥ᣯ锎ᒠ㘸匂꯹皥ɡ᥍쟥ꓠ휡鎵貨╳熕㓽콌㚶땓♡䁸៦㣊ᓡ찳膛卮ڝ䳻棆⚔匶丫㜙蓊ᢢ覈蜑᠟钛ꀴ桔᯾ሤ蘆襈◐㠢㙖팪ꙓ⠧敦쪰餤䨍薑Ɑ锭㘲呸쒩鳋ㄗ⑌㞅樞⋦◴⌉ᒻถ埦⧩腔ꊉ䕒ﵻ鮰෨䮳쪓䀦ᅑ쌩쑑壕㿀䪊邶⇼\ud8db퓈홛ᕶ닐啪셌謹ジ഑噔ᴐᇀ瑁栂滂쀌洎뎣肵심ȩ퍈ঈҿꮊ닾띈⺃倃垥耕馘ꩶꝢ괃閳〹红艕ꍢᬇ趏๚梾╢Ჿ◲췉嗝䤢꿖ധ驟棐裂留ᡭ∁䐁⼱렍ꗒꫥ喠뀚敊蠩⃒䌗벃㠍⚱鐬髹㔑⌬ᓆ⽗鉔놹䮪착뽝\udd56Ⓑ湕摷＞☍䯽唵⯛滌麀㾑Ҍࣀ쁆켣⦨瀜耬괥溵Ɩ埀試鱎Ⅾ锊餁ꑄࢗⴳ࢐淓ࡼ⊵리⭯熢嬭⑺䷊혥烕镋썒⨃ꈬ툩풑耾喉Ɽ嗲랃迊ﺪ缪緈榛奲ʆ㖽ሡ嗈瑚ꎏ屍꫕⤶᭔첖濧切됓먚뀙ᛛ鎺옓콙龱✕堜踅⹊㓕셢뢖梽끩⫑︁䬩圼칹埊Δ䷆䪬絫⒃蝄逛茳體檛ͷ蚭ᛛ家ꃳ鐬蹥赼ꖮ਀㋉\u0016媑쀹櫲홣錸୐ᅕ珼꺞䍽䪄跷啓쵚穾⸡黐헃ꢂ랠⹚ﲵ⣫赗풌\ude91퐽澊켫啄䱭嘟䯛듺歊诶慫澄䖨ϩ矚ⵯ䪌姽⬾ܛ쨙型Ⳟ幢쁁撓쇅墣㜈耔㔟思ꁎ䛰ҹ艼뽩姲徭萁ꗖ岅靟ᒞ嵛籄ϕ肭圹٠馸ꜩ垪䡫処쵇꺸넡뀢ꀸ솄쇴萃ᇋ픊ᄘ⣈숃故纯ꅓ練襒ꢆᗺ쎁ਲ਼⡫嚕个唒ᚽ盦ꄟ\udb23﹈諌짻敿Ⱘ龙㢢撊魁\udd6b떤瑄蘉㒂뉐\udaa5\ud9e2䪠ᔫ⣻餶붑䚊躩둪旧ꀃ贑浾諪듩Ɯ褘鉂୰݀㜠侀璡㞁줷分瀐耹8胩䆥̲夵饦䩰၈ᴰὢ⦩恜ꚱ쥭棰闪殃閜䫓共❍届頻削᦮᠙猺텟쓔ɝ熙쏵䭼锧ᦔ爘׀໅쓒㷮ꂵꮩ䫗㖅쫒雬म劸㚥咴凵캄畧暄䨧핥ጄ楎ꬹ푴ꣾ랝姏繵재\udc15뼉봒漴嵈쪔뗢­씄ȸᑭⲨ爀ᜁズᰅꀍﶆ‥墢떌튓⥦鎃솋郹⛦끃龋섉宧촣ѱ颹繐詽풱婄렽䬊탵좋쏖ꈯ㥑氵굗沃릒ꇧ\udbbf쥢庞㴽䔢늉켫檀㜬䚳᪤ᡌ汭᝹嫕㙉喴욙瑫힬\uda89阥樷䀋耩\u0010˰ѼϦ렒躀⤈钀縴“耯䁠ꂋ鐠\"ʲউ㓄⍀宓㫅䕲ज़絿닶׎䨛\udb77ົ幵⽍姌ᜲ⥖䓳編剐ᐊ\ud81e䬌˛ᙱ莬宺ȹ᯵ॊ릨⹒Ĳ䵋蚩ၐǜ㕠B鄎ꨤ䩐䠚ᰀꁫ䃑瀃͖ڜඥ礪얣ꪶቑ\udba7뙈\ude9e鏓燖檨ؠꍵ䛎胨ᬰ㒣遨힁꧅뤌᜖洝媇쳷樖럆\udf3b꺌ꛭ占궥䏿఩鴫䀶ꋎ﬘෗狡畾ꭾо谍儮꡹煁㞞ಅ글锅\u0014蠲䃿퉕힐쭗廁␝鋢깄᜛녃屪ἇ熣뀩엔苉袷၂ꅣⷆ\ude18딁㪒箭쉚엉荕嫑盡卪홙辫廁렖笊긍鰪炨䦕覺\udcea韪ऐ풆롶癤퇙黜フ㯰횜ꗂ䍯媹\ud923謆퓩瘛媧\udbd4煺ꤥ겋⣔ڎꍙꊲ뵶読സ킓蔃츬ꨀ⇀䈀䅅ᦢᜁ䀈蠣䁚胇?㪐ω췐݀ೀ僸晊쩩鰇묗䘚䀽꫓댻媦ꅽ旚ꗵߣᬆ⡒霪ᆣ絸䛻딢஌홋퐗䇂췐ヌ㖰턀\udf79鹆ﵫ吐蹱桌鸜ꨫꝤ氇壾ꆬ⺂貥傒턷ᣥ䐃ꦷ㸺䀃䵅䨀㛘⹵嗎덣伺\ud892팕䁪㞓謬ᮒ嫣贈ᩓ飹⋀ඓ䮀➺箠㨁ං椄瀀戁ڞ⦈⎰禫␔捃㲃北⹩낛⫖킫ﵝ調荣૖෌⫃쑰浦垏ฦ楆쮕뭅젹崴䍑餬䍗嫵噓뉅䉦ЋӶ䙠爘ስ沛譢⡭䀩奣擞䴪㶬뢇䆲⩧추愀掀褁萀뀀\ud801쀛即쀇꒜됔ꅠj싖臀۲偀䚥彦⊨뱥耎⢜J竇䂰˰˘闡ꗇ躈鎵쓲䴶鏋㓔ᆿ籙歁犸䵜눧겘鉤屣밤گ崟퍼鱠储佞ᇚ䒯ꤜ늖\udd25ﳜ扟褣䃀媊葜ꪾ訪뢳楦删ꬶ缵妭Ꞅ욅깴䭇꜈ᝨ화㠾靆骎㴚\ud8b4垐妻앷ᛞⵔ蚭峒㋕廴\udea1ᴣ徭泵杛렽鵱\udf11ꄛᩀ㞦滾ꎹ瞪輅४ᱫ餖䔨㕥볰熙륡‣ڐӶӐन푮⚀홁퀷뜌㕫웥ﲗ쩞㡧色\udefb闋璌౜췗ɯ읪঵넋雼〗աꎽΊ\udef4ᖟ黄⊈ﱑ\ude81ﾶ砏뫲떘⏦겫垲꺭䇊襩袊魥螫晑ẫ饔窫閙⎄㓎樴ᲆꎉ椢铵\udc4b컊賧䦴吘㠮せꃻ嫉놢符꒴䙜⣕ꢪꍝ㚦赡ﻇ驤䡆譈䫕֪鰀䠠⨰ꀃ됀瘦鵕Y짫孼艼嘨Ң㳄녀铀㼇ﳒ㓃Ꚉⷆ驔흁樝눥狺탥ㄪퟕ읎產텃\udaab䖁䩵密蔩⸌ड़ㅜ抐馠曡贗樎䐂档橇嬮袩哾꩞䯺젩军㠰疣;궉魘樀\ud865뤖柘铅ရ鿙픬닗砨᱁曯屇Ȝٲ⊯述㾐皀阃烆歇྄웘ສ顶欄寙븓榘ￕꕛ鄷镪晔犥饥ኚ규᭱㛰橈鰪섍䄢\ud9cd塪䪧침惨릣ꈯꚹစ藭䁮欚햹뮈䓚칍퍛뤶쵨㳒␵뱊䁇⏤㣈覅庶ꅄ曚쨅뎭蝊礣䠁뀄豻굌뗏꧟ᱱ⓲傳᮵愛쿆㏋╓뺪⍉ᕓࠬ⤄䈩쨻騣쁬㻯⦈炠Ńꯓঅ箧⪀痈\udaa8뙻棬埛刀罭슫\udb64녮褞ᰌ訳㛞桺Ù떜æ헍례༶\udb80뵽ㅬ줒ꪫᵄ畐䴆筕ம틍놻笶칭\udcdb扠睬勝ㆹ䭓䣞躻퉺蝭ᦳ쿽簴ꉭ欚ಷẋ䳒謤쭵劬춂吜汋嵥뢒愬쇥솫ⓦ쉁่鰌ထ吼ꁏ᭖嚕ꬾ刜軻猤볕敭꾵㔅뻗ঝﭒ㬔直醐Σ듇欝蚵䒿᢭ḳ巣䠁꟬뭉⭤顃䅶䇝ɒୀᮻ⭄䚠\udc02唃⍁‏ᱼ倡Ċ憃⁓ⴖ\uddd9ꅟ鰦쥭炋ꖴ螫䓜횼獎⛨ꎻ斺眕σ嘽䤦赭굛줶焩莣ꭽ쪯꘺\uda9e咊脥Һ论ᩬ⍭爛㜷먎噒픮ň䂹◛댴㕥栏═虷絠➳ข蝡夌∋:⁚녹ĳ᯺춐๝뚠ᭃ罜晊簨쾈쨛ॢ歕⪀괻哵갥䯖\ud82d⍢ꉖᾌ䀘榫쥭\uda92嗑\udbfe뗇⤢ꋻᐛ帒⽈侱凁և蠋먦桚ꁫﱴ䍜䀝漺⠳䅶ꆛ᳣ꔪౙ钳᭫իᵻ哇䍐ᎆ鬋㕣䜺ꓚㄧ☮灑砬쭜媛솏糱꒑䴓铸㱟⼀㜪穉ඔꐙ썡쀭ᢸ嵠䟳椢㽩畳㬈렽䣻䄈ꃜⶺ蕿ᵄ䫻㘇ꭡ찆뉚哌૛ㄴワ䑑㦥펞ꃩ췪\uda8dߚ軖픙톈楉㥸奱\udcea̡ᔢ즿\udfbc蛏ꢊ᭤硛浖庢뽳䕺玲Ƃ햁捂ཤ뚳䞛㸮틿騘懭⥈掟ㄵ쨣캴끔륀䐍罪j洎퓸櫅勣렻凄컡✒䝫듕ᶠ쵍歘騘娐菚趚ᶺઈ羀뺑恁蓇혆愒吇਼鋅ꆵ쨣沈뜣竾ᡝ鐀읒豗䎵⎡텶鵸ĺ璯픢١ྦྷ䃎荰촛ҵ撈꭭躬䭠ꄽᨅ甊\uda2bꋠ㽎鿁۠枴潈姥봳ꡭ흕麋᩶充谦\udf5c벧竆䙛瞴ꁏ\uded7厫ᙼ嫵蹐緯䓙毀鿠ꗧ駅作鉌罄Ɦ逝ံ\udc0b춑를띌끍쮚ꍝ䅪뵚颼㸸楢폅↸Ⰹ몙\u0000鲟ⲹ杚ꓱ柲ﮖ痳㺕䣏顖劬゠\uda5fⵂ颾⧭嚙鈨㏀殒\udfd5ꁔ蛏虗ʢ畉賄ᗓꭣ斣⮝峗⌅䩬ꗕ閴坖杄ꩨ찱膳ゴ\ud970䩷噁厘鮘伃幡잫К麯硘蒵繥率⇑믢ғ؀ຆ胀宀✁쨢僐᠄ꐓ固ශ㎊띑ᘢ勁ꠍ嬆ꇍ㐺뜣≹뽸ꋄ唧ꭃ凕랇侷罞Ꮃ㏕羗㧘᷍µ컣洇쳈퓈匤빇窆\ud9b5ﲚ닲軁履庥㡛쁋t鋐\u0010Àἷ訌뢀윁눂\udc04\ude09꘬툀ࠍ⓾巄픮䤨ῧᾯᆠ槀鰔ζ똲\udf11ᴼ๢覆궖鮴훸姞퍽姃籝띒剔酑䠋ဖЃ琞处ī⩻ෙࡔ㸀⟘饷濰짒趬㍦﬜鴽⒋띂퀥৘ⅸ䒺┻갔﬷틞蔢흙㚛꭪盅ꮵ탓멤烊胕薚䢢빂눈Ꝁ✞a茼ۤǀᚄᢲ竍妪ʨ关⃛䗂辅沚ᕅ婻㞐陕럟Ֆ啛㠶注羓솿閊뚎Ễ鮚듰\ud8e8셳傎蘨쮛㯓킉⎤\udb42蚳洡텷㚼遧채柎ꤤ䊚푵쥣탐憩馱蛓ൽ耬㓀ʰ\ude61뛃綆ꖀ踚㶴끒⧧耏䀏幱倣䲨赯ꋭ䞎飩\udb46ﵮ䋕縰靓鬛賔절䁜枱辻\udc26ˠ畠쁱툂繊綏퐔麥턲窔譑ᯗ뾯窐䆽闛ᴺ誮동밙鐰聻㶎箜ج鉗玘豵插﮵ꪫ闑뗐ꑙ붶篮ӧꗏ实쁀媺囹骯黕퐳澛䣵麶ꪏꙩ噓ꝏ戬䦊ᾅ뜬ꛙ珈嵮曚淸퉚甾袾\udf65뉎桪\udee0啹蠂倄І瀛ꀯ7쵌듯퐊팲᰷䆓䞡冻⸐銅讄쨝䠼滄\udd3f䍾ဟ츭ᇣ≩錐矜죰内簦ဎ蚸爦ꀍǥ멩㙍쁿䗾蕼嗳᭖삮顑즶滫씿䯞實漌␅犬껹䳛ꃉ쀅宪홛틚\udd11댧吶樄긆듼崙涺\udae4팋緅䃆膃ヵ핽묷咼Ⱍ훀\ud877歓凝銝익ẩ鷟販ॶṢᵰ騖矻ꤽ\udfd9곷惦鯹蘊乔炩诔궮⽺㪥楙戽ε괐푈궫牺씮Ά苄쯑ꈌ渔\udc08貢䨋풍꾹\ude0c\ud80f檊鞝㍚㤗볭뛒ઢ꽩쨕拀ĩ߫䆜ഠᴐ⣶驈瑀封蔅υ괰㡚桟骈Āր㴀䨀㺤閡쀐멤让음䀹巾᪜閩굺\udc11뷫瑊넫뺷넛㘡퍤䚹뷗ఆ슬\udb10ཚ汨৅楂笔鬒㍉ᚶ⩤孅梣黦꽁淍㙝Ⱄ꿯忙뾴夒㸓嵺宆蛩镓꬟䔶콕˫첶昩ꛘ魳껰Ṅè脩ڱ傻茚⽀瘵䞨态喋퀌박麦緭헆矗䜾吀╶⍤ጠ⼡쏰뙊㲚ؤ牨중茻╶䢋잀沈⽤㻈ᶓ㱔 ᲋㴰爔䡡줽鏰᷶䴠憻⣐噬袸됀꜠㣀\ude93㤟¹줘昱ஐ䩻ᥲ祽᫪ힰ᭠\udec0\udc92讙똽戏뎦⼨⼥㓻⎶橜饐䞓霧劝㲖礼\ud84b줲槉㍞䆼譹⚤ꀜᒢྒ胢䈧愄•ไ峻젊㏧Ш턠퓹刍䗙蹲匿臁㎲ࡾཎ槞㘅퉕ꐯ咶낽㋛᫖柨\ud9da㦽饎\udcc8㖱穣훛盳꤯窴\ude25㻂㳱Ԋ湟ﲤ표부箤璗깹\udaa1갏怪괕짜쎠襇՛ޣẃ჆ᔒ〴㕠ղးⷀ䲁ᒹ\uda03ᐃ贒횝䥡䃈嵮⫛㪾狪ीᏘ㒈洡ᩬퟅ㓜។╀䛣﷣箸ᔚ⥭᥿ꩬ嶦\udf25寫燬鞥\udd1d렷镵ꖙ쇜㍛ໝ౔᷃焐Ё杇￭㙣㠨ë⺣붛ꎎม㌸㎿鮻䢪髭栀蠌逜䁢胿쁪δ۞⵨\ud98eꑋ沮팖ﻵೲ쐽脇ჱ䁲Ϥ凱໥趠㤏듕捈ꖞ௚풵⽯椑돎핐媇啉鬷뜠ᣇ펯㖹稁ꌽ頇뼊⊞枹ⵃ㛱籐Ǵ捐Ƙन꽀⡙⾊﮼粒蕱쀌瀞胐滆Ϟ笲࿊ㆈㄮ༠윴뒃ୈ惔箸沊绥鷞紐瑧孃뺠꠵뚽刃៬⑜玶鍤늤\ud8d3䧤䃰럍쁠켇彑⌆孏ᠷ즲惺漐㰍䪹٥܀ૉȰ湀俘篦怪耎䀚騙쀻Ü胥ꍦ諫푰⏽䟫㱀溺鶁෮푒伭읮嶔⚝䫺훰疏綦삝躛브ザ灉濫나㚽᮫䡘䐆䋻ဨ坜಍膛ኗ٬⻗鎬냜恪釵삁㒵괕墨焠㊡핃香耂퐲ꈘ↏䌟箄듊폷느쳴돒ꮇ휏逃吱쀃僶胚蚪⬸냰㇖쩣皮馍⩛㤏甊\udbe3족Ὃ㫠떎ꮉ둔\uda80睞䵎왺㌗\udaed받聰齿狢綇洯럃眧\uda40ᜠ牄亀码擆驚汒䈀쀻쀃ƒϘ溘鲔ഠᗦ큀\udac0᠏岉෕琬㝾鍉靖ﮋ啟훴荿帠㼾햫啻꯭䷙꾴畆溨争珵⿾凚뀙枬껕ഊㄹꙡ広礅쁛緶旭둷\udf5b뤙刊逥右偕⊷䅜孚顇滟綜鳗哲琏햂궘炧乡ﮪ읶Ắ\udb4a睰茳픽猾៎赂ᚆߐ禠Ⲓ큷倷쏌㔌’⁆塶떅椖\ud89f뢠耵Ꞻ菗꟯≗ⶲ㱌뒈㗮蜚ะ\udd32腼㞡踝撛⻤副ﾙ궰Œ䪺䶁蛹棛菥ǈ䑫巎ꤝ쨪\udbf5䵨涫뽩庐퇴毣ຨ␿鼆䕅㉺쵩樃倁絯挙⁑萺売䡬ü涀౴ᦒ香㹉ퟶ笩챮鄷罇眔嶐孜矜ᦂ훐㏇姾៺嬏敶벞\ud86f᝾凔⴦橣䃲跱詎ଋ狘៕ꜘ鵁﹖଎喆ꕭ變Ϲ쯡ລ⮓\udd93봛畊꼵삑䅦䴙ꀇ㸰䐊웭㵈ߑ䴔㷒꾝䘁젍蟚Ⲵ㫫봗聬ﭜἔᄎƛ䇝ཀʠ䴹楚숁첑鰅І\u000f僓裂沨㓳䦠\ud8a6ຏ뉾궕뾪䨏Ừ姒ḩ탌凈봣鯋膎歴ㆈꤨﱸ鹥ᣐ黫㔑궷탕纳鷨銨薟๡\u000f伇䔍ȝ\udbf6谞谳㚨ᕕ竁䷶팝뒭걐⸕抈댥霨㘀 –䠵懖嫫ງ樺鸝뛓孡较ͬꕓ꫓ງ䱼탠솧ﮈ貲詄ࣻ攐໅坍聯鎳壶뇝捿뎗ౢ᱆㲌终ᨱ땝놌\udc36챭⊯皲䌧蘩๕ત㵔␸\ud862ャ瘁톎䜞㠍豦抯蛪䔩溇퇈瘟䋆﷩䚺뒵꽭⧐౮ɐ㇄씠욢힀漆㕍뽣績\ud823촻딫痚䀊鸁렜肊쒧儍ɇ፤ᒀ㵌灠췐읆㪇ଯಗ⾷谣Г뇂蓣᫤Ĵ㊌쥐᫢ဂ舆㥏꡺製밾肛⊶溄턠쮑Ǳ臣檲褣༝ꛯ푼磯豱偓욝䍲֞㭋냀˱騊ﺑ鞏\udb05₫㒘堦\u0013ᰖ騙㐦䔎ꘕ⢚⽵뾭琹ạꃮ约荗䂇慒㋕댨쩍ꧫフ祕﮾욜쨾傥੅軔䩯\uda35끠⨚ꌌʭ阱で趦푅挑ꍖ煆Ԧଂༀܚꠁ턃ﰇ耛뱶ဴ籴䄑㎎么Ҁ᧙勾햢答㘂簣㠌逗⎈\uda62텳䙻笸㚋ꣲ呴휥掼鬎\uda38㿑୮⻏茨宭违䥈Է৬ꯔ駾᭐ల넰햜䐳⡴烬ꫳ떤\ud877맨홎悙Ω荍뾕ꀒ䓴觙ፒ❣寽ᨚ᝜狺䍱誥ꃇ鮌䨘蘵聺ࣣ仯ս쬟С᣻귗ⓖ䓠읁팀봄钓偏嬔䡊屁꠹曷րࡴḨ௛።䒁嬂\ud804뮋㒹:⁤Ⴟ돨聪褡ᣄ鵚儀呆琗磕ઝⓦ䧩帹♛臤駊඙ራ䴠Ꟈ穏꤀줶ᮀ擯찯價✈̋Ņ쩒簤㴈䪓좱⻣め蠇剡꓇࡜쁴‌䆺썩㷈ᑀ㺘ꈝ蔇ꦍ譪᚛늬ꃥຊ菔㮠䵞㮳궭䇜褴ᳩ艨奙纗\udd5c䫟瞎쿦㷻ꦊ蚐퍲쫡\udced\udfaa퍤횿ᩜ髚❛滯홗껛䅛㊀ᨼ냨떣ꈍ젘쁏⋱膡瀦朠րل矦숁若袘㠱⚽缲촱끬c價⁊ᢢ簋恶\udb83㷜䎴拫໖䓇鋦㶺毞ഈ⮿핬砧撽᧰⚁葂\udaa2ᄉ㒌☹葶ꆰ撒薕㼰扰펉꧃擯೓鎯｛ઈ䁭퀙䴲鮠걓됥隞邓ꢒ጗锬灔\udc65\ud8fc⥭쟪镙橵휌恹我퉽褀銎ጩ㰉걛雏㶷ᶺ伝⬶䡬覸ឩ⢼虎됨䏎擻蓷䥗ꨟ⨜㠙⫐\udcdc逓谛䨍≯뤿⍍杯๰㔭毢䲍ߕ௤龓\ud912﹍烯櫘੶푟໊﵀஫厪௔뙸墱\ud8b1ፚ程⽖꣍듺㗨Ꝛ曼檈ऀ⏠ゔ핁턄 밐裱쀰Kļ袧耐ċ곫懁阊嘤汊倃ㄯ䀆쁾훾⬏滚龿ꕄ淋嚌䷯\ud991둩끀꧵입䱶᫸㫡튕拍㺭蘁앃蛷蠇樟ⵘ樼ⷤ襂Ὰ㦿츐쳡膊\ude8e罕崟꒶鈢짷伄頽ႋⰤ띕怚田㊷핉可폏랺鵉㱐䧜ൈ䌐玑䐦伆ㄪ縏摌㔺䳔⾷裸喠Æ訳䕡\u0002퇊\u0007ര흜악㐬ࡁ෢鍄☐ܐ鵍홊柿ᤉ渇죆逃串豼㣆ㆨ섵♏Ө׀ॠẀ甠㌀욦\ude6d\ud9ce䐓㐴谋ₓ쁽Ƿ鄐恌月匩佥鑁篰ᔍ謹鐟豃勅‚숴쟖êῠ㱨⮱ፏ꿌\u0004ᦨ\u0015幐0p₤팑꜀ϣﺦ頉逗ꌴ跲ᅇ叵䔜脼⣖續䴹﮶瘤俏퓃꤄ꚭ蜻⭏넮괾徧蝝槷\uddd8欿疥㼚଴Ꮩ姰쌌皝냅\uda6d酞뵾菻俍객㦖㑖䛀▀晩뇊\ud951♯少䠘Ꚋ鬎ϛᜠྰ浴阊縧郃俨\ud80f㚞됫⦓팷٨ꮣ퉿긋䷩ꭍ饜춌墊䋘銶潗憧㘑ᥔ䇕ˀꝣಠ⮌攐ꊡ퓧켉甘꼀瓒ⶠ朞辁馋ꋴ揄漓픇籎ตЈ뙦′\ud9d0曣ᚡ髗鳜ꭣ延ﵹ㕋鰌田侳룒䧮᱿ꑧ蘙㍠Ḇ͂⊓䶈Ი\ud80a퉣ᶩ즀퍻왑惴鶺ᶎ水\udb70㆓䂛艨붖\u0003䠏疄㬌얦馋㍨栯噩蕁獎啭͜\udb3b㽙쫸ፏ㛚㇂蔄꟝뤲歎閟켟婢곈⦼፠ꜰ섲줴໚暲杩ꊽ鷻쯕걣ᓄ梧≿耠̡菐Ԁ΅ൿ歒렀堾䀇㈀쀿琫탌雰ő%᭴⠀贱㤯㴵쩰ˆ쌫࿞骿협ꋘ셗៓ᄽ僤誀锉玷툈㠤䁖⤅艝䣪ᾪདྷ魰廆ﴔ\ud81a趸륧觋뇿杹囸黷㢄\udde1ଌóࠇ凶̛䌳๸쭵껸猇\udb62亙㜁ꋏ涖펍䡇螔烀夲㉷ᳯ灲獝⟭Ṩ䍎戫歂쁍溒駍庩朰鐄擔姿㷳㫂输ᡋヨ瀄鴱逵恍핫脹険െ簌棰퓯瑹趹堬ꢬ홑츥삧ᭌଟ贈룎뽗ꐚⳐꘚꑕᵯ텂癇栞饣獚篴ຘ愼㩰릫猶ٽ晰ᇜ윀杳껧\uddce껡ⰸ㩟㞽:ၳ棏ﯢ蟥ᚶ携笩춳ȵ庚砾覄ⴾ䪟䷭᳌⮾뀩伷␂畀łʄ\uda8a鹪劰灅팜慦耯ㅅꢼ쒼鋳唪귀풯픹˺ֶᘳC飗锎櫔쭹ꭝ啋\udbce\udaea舵\ude76ͣ勺洮멉鴟ꨗ᪒垮﫠뺦⏃醙丆訟ᣱڗ㦚戁큋༠鷍葛▅ꊠ럸姶䜁킹눩ᶍ눶`㯅د齟鄴칻ʌ횙ꣳ喑嘓턖彆຋௿ⴴ퐂櫤퉾ꃱ眦⁍僭䓔듵퍌㨲͕斗㶕㛼降鲣\ud826궎⹫饂쇏춯遷⟊跥㇉늄\udff9\u0017兌芮ᨳ䐛鱐뉉ʠȩހᚠ᤽及ꮀ⼩\ud8a1逄뀛젹烯쵁尕Λ䟣Ύϡ샳Å㥏ꋭ༱ꉳ䵇훍ꍑഝ鶏㊹򰡶ﵡ扠漢\udde8ᘂ⌳왠㡒ਙ䅸赈෱ᙼ㜅藎\udd24颼๡隮乎嵛薑汯㨒稜\ud873淦拖䨙㏝⡵䋾曼̈́晒䳷ảҊᜰᰌ毰꟠Ȭᡝ栃᠁㠰ꁝ켆饾꬀ؒ쏐揬환琪⾑㲀환峗畞껤λ뷰镘\uda1a쮵渃＃哤봝悠†✹콅食㬖瞜헉Λ鋏팜碵ាꃭ囌䗵嬧㔉ꙡᬢ隆쓵૧쯴㾜⢾鞬ᓚ盙㌚컫鹫㾮皨躳웧鮝倫몈昆憁×鮊애ޥ࠾퀈疹찣瀞鈲舁歋〜棗톮à퇜Ꝛ힘럡껠퇾閣篢횎㇭彑녻棢᛭诊ⰿ汕萦᪰ⴐ뛬ゴ슇蠄뿖ᐚ끔탯࠴䇜塿嬧뷄\uda36닳‍ᰈ騾똧ꗰ䀍蹚驮埱疼슅쁋ㄦꔌ쁩᝖ꅼዟ苍ଽ윳灟⛈ઊר⡩\ud8c0见彂㽩⭜鼽嵕㧪̆ॄ윏丩㞒㨿ǚ㖵실宨巗츛닾‗ꀏꭈ2৘腰咘ɢ⭴퐌ᾃୠ嘙륮᠎䮁匮䷚ᢦ㟮븢쒋༧鈭났㼾⥸ﳃ嚾ᔨ薥춖鳈陷⯾湅膝歏⮟⬵궯탉碀썠ꝣ䄑갑ή當俹逽Ｊ礴ꊘ樵홸ˬ솵䊊ℜ쁀Ғٰᕮᡙ嗘砀\ud92e깎﹨适몤เ䁽僌铱갲ˀᤝ㓄摴賥䂵퐏嬰银诪⚮힭Ί㬇ご벮쾧䕌큜ꕐ郛툔ꆅ軸앀⧿밴ၚ佾剰핌薱㡵쓄᧐̙䬔녏嚊즄ഽ暦凶噟豝奻鵼藬紭읱潮㌌済\uda39묭娗蹠턩ဢ넎袎遰Ģ忖ઉ獬㦥鸤⎑泃瘅战ḓ᧞䦞銜꿝䏰ވ͝䒀䪓⹖ ﳃ鼶晁糥◵來䇢꽅嵗鹂ꋤ휹㳦ꦍ幞\udf3b䱺⣾識폱䜋佥頻馑捞빙諓㤗鈬咹횴૑䗦폗䟷稛䣿㫨㘔쑡\uda8bࡗ配ᮚ凒湨瓚ᗙ\ud84eꂣÈ֨ీ례ⴀ掀淅꿐㉎ꐾ訆쀻\ud93b焺èÌḱ撠淆뢀\ud9f0앂舃苃腭晞֑뵛曆式㚱滴옕師嬗⠬ᢜ貶癱ｅ蔶ꂺ萟淑搔᰺楋悇➣ᗅ笽ࡴ⶟퓂ᙴ៉㸀愐쁊㶫ݗ풁ᵝ蚐敫閙ଦ噷랓漂㺋↲ꛋ蜚࣍Ꮿ䜸䄴陆砸ꬠ脈큯芩毜璐⭀ݴ䳬倁祙䒱왪렀„კ♲ě䒚攘ነⲈ沀䳇ᶢ⢄먈䭀ز恤샶젛㛊칣ㄞ觊旌箠숃쀁了㥨⭳䉲歧ࢩ꺸媊\ud8ce洪쐬嘳㠁\ud8cfᡛ⏆쵶䀇㖢뀾ᛑꉒΡ꿍桢₵辠绀氁ㄞ䆿ⱳ쯹媹Ⲑ㭹羜칩禧鲫㘛ᱢ勞캦᷾醹䛊巼룕摙䀩ꕳ֒땙咼ﹹ莔鱣ಚ靠곔巿〵溨ﺥ蚗䚮Ịㅈ㻈昄肠΢Μ饀ᆔ샀濦ᣁ詃햓ꈃ鰄瀍쁊⭰顁샓銀㨝腄ꛡꝗꣷ鵘₰ꊒୡ쩃⻨颠뿅檂ឫỦ鮓ᄁ슒〺ꄫ㔁ㄌ¤࿰ɴ噥渦畍䆜튳ٲ䌇痚ﻝ힅酈崋射攀휜됃\ud8d7쌼綹퓬㇂㍭鞈쳷Ἶ㑼橾꤀൱\udd4b䳏長蠅룟瞆퐞ꋿƊ䍙顇䃅৶⚐ᣐ⇑晓ᬒᜉ℆젟栴ᯨ㘰湠\udf85Ź찪쮜ଠ퍱㥈뫃왙烽왿괛겴鍼瘄㢞虐뜘ڗ胞ꫥͫ⸌෮젮䈐涭臐ࣂᦄ⨍갛ﰶѭ볣ᅨꫜ䖚떾ퟯ⸋颋\udc29熘︼䕭饧䎭벟啫飚뛺ꭲ阞鯾嶰ᘬ뜨쒲뀫櫵魌篍鼋㸆૤銽玥쵮죐\udf2c悺낸줁蜧㐬㌯쀎냆䆎©❒ې춀ᖸր晊橀ࠆ஝ဘ逡䚧ṽ홶␏帛퓐㓓早胋힦砗몰視ꭳ흟乄菓ᤌ᪈ᖰ壩벇袃촄䐖衱恻賷괽᭒뿁揍悅辣脷艮쫖஘逜ꞿ⇿\udacd畯涾릏갈蠣䂗鐬艞沶ॵ퓲䦐Ĥ휜깥婜좕暠뮕뉀鹗箁氅윍煍詙た⮆ᙼ갦ؖ蘲²⛘᷐긑辞隱ᕪ曞恬ꮎᝳ쉅塊뒕窵ᮅ輋ᒖ퓆鳙誾⣜캯欼霊꿅鿤뚟끒\ud955샫ꋧ莯讙\ud9df䎭ভ牙ᛪ꾦䷹㟹慒쀩ꕋ鴇ܫᑜ툆จ幽⊒ﲕᛈ使髎뼅橭湵鵦닳㑝六㕪櫌햹ꬋ垎ĭ嶕຤ᕪ𥉉脀魗뚯袞䕡\ud89c\uda0d聓ð堿\udbe9拴ﵡ鹓騦⏏梜麾䅡㩚䷋描圲沑嚞㽌麦㷆潈㮼뮠檢鮆갉尳艠灷䜲㐽᾿徽窦쿙볋裸萬郂쀘ꬬ桷ଜ럋⽩栂㠨玦ᄧ浍ꋌ纻咱퓎ƛ⮨姮㟥搚ͤඛᱧ殃䌓Ἳ荠嚥雐遽汼쌣㏥瀶횵룓蹒糍輈浤䩴䗋쯱曄渢梑뀩椢퐉Ɤ켧恎┚ֽ첯䴛驕ᮉ稊찵徔듕渖쭕땳崇\udaae분熆譵蒆ⷰ쏍እ赐鱂됵曆턭놫蹄摀震簐븍䤇㑢恴䄺娜ʠ㖀ᓤ\udbe2⢘侁ⱶ㋄ᰦ鐟騾뀮孧ꙹ沇飢녩ꦴ秾\udbab뇓㘬\udc4fಷ搥๤뵳ࢹ⪟쒄珏Ŧ걄←࢘뗑鰒흂ꭲ烖䛍医쎵䵃忌띓炲◛猲ࢂᲂ萹ꑤ㦻֩鬭畣審뎍疸䴺簕\ud95f휴涀\udb54杻胑鷮Ԣඡ⾩襫⦀⏁᳟શ궍賏閛ꀼ書쿄\u0013㭰파撔鄳扦蠀䦚박♴ᑂ蒹㌙욳蹣᧎㎌絊媙贳婦瓎瀀쳒#㎽쁌춙駸乩Ⓤ斤홦쵢挷댰쳓֗㎴ꁲ汹餎菃䝚쒃ᇀ껖\u0004蜴\u0006ꦨ\u0006텐\rᶚ廉揜盲娪뷳椬钳ೇ詟醺ୢ峔껪ꮞ诋潼骅뜮窶耫폖酐呬ᓞ䤰瑔妅㗾渔쭙쑓鮲ဖ⣭蕨뫸䙗骴캎蟑\ud96a崐ᜀ┠贀찢退⸈透\u001b쪦䃌销躓奔ἈԔ抍获ޟ抿誧盞\ud9a6㷉㞣촊鬕뜞灊\udec5蘖턁幗瓃儈㻔ꀏ摴瑁棜\udb3c惎骢ኦퟙ遧뽯὞Ⴒ朆耶䴬椃묘멂嗢꩷䇞疸蹺魴ㆄ㮉✽漡\ud872닭鿖ꤩ꣜냭அ䰀锘ﰄ砆䦳ᆇ⶘崍뾭收휙\ude33⫖晃鼃䝸䳹呩⤒ኘॣ돎⥒沙鴀䣇펎ꌜ츱ᱫ軮燞㯪朴콩鿂罌ㄻ愇䠂䧝ꑍ❼쉻ࡋ়—騙蟊ᱲ誝蚰橶匀槟猼邋쳄짐䷺癸遙\udc00ฌ栀ᵙ䫎툇瓓՗슌㧙姗빠㫴뒠뮱㛑⽻\udc5a糼ퟥﯝퟧ䑖ם䍐վ᛿ዄ寍ꙡ뚣䒯ᷕ搸啅걛⌍푞鵽⻑ꗾ\udbd7䅟鮎ǺΠ΀⥈㎀耸嬪犪㸿࣊褢广脈鸣\udebf釔鸀捨툱ﺲ밆鸂흵諨\udec2௱㞈ⷲ鴠밫橯紼잫㉬➟ᔼ躕速䣡ꄣƄ슻㑉ॿ遇˻蘁ᛮ꥟宼ὴ㻰셊\u0011ප\udf5e\uda6b괟獹髋晗씏울㍿᫾ᦷ횽汣须뫐ࣂ꡻⽷ٙ｜뒙㰐ȑ⢙쁴灃涟⠇뙇抎젽죠惷ӎ浄螼級Ỹ駇Μ뀩䱔鼠䗛㈽탣棷㣭⦞잿읯Ữ駡㮢矄\ud9b7੦粞\udc76䩻艢곎䴤厷晡黃駦篎杙顥Ǐ李쉭꼋Ⴐ告\u0003乌\t¨\nꨰ\u001cᦰ뷟燹坬\ud8bd걕戲濍恪⪭ꑚꪼꍧ컔疛휵\udbb9僚祒엡ﵐ湦엛⨿ᝤ\udee2嶝䭈꛱濉⺷록硓彔쳐ࡻ촭ꅷ㶝》꠿婔䃔Ǡ莐ά揽雠ັ覙䲷倀垓᪘悑⁔ꂽ휮ุ㲢疮ᄫ俵ٜ輳흰퇣\udbb1쪄꺤ꢒ렾짶Ό㊮랕塎쐆ⴂ뎕‱桭᳥䳦尾뷻昚\ude4e餇ကဘ둵燳匨暎믓氘\ud83b磻里眜䎻睼乀麟趽\u001b‬\uddee㬍都뤵栃턯᳛磕襺ሻ鉤蜀㫃㘲䃇憞鲒틥衘\ud95a溂ꃬ撲ꆃͿ臜胿㘐୰ᯨё㌔蘿\u0003둽˰蟻ⴶ\ude55拶럌䯜琺啳ǈ맴덢溾岔뫩쒴엹횃閶㑯全통樵姭篒⭵鿼Ꙑቔ⍾\uda07鿧캻譯勾ⶃ䭽뜲傦腝핲甀䈀䬀杯ꒇ逗耡ᩌ驳﬋䇋䒐瀟祿枀䨀答肶取髇ꀗ老ꯇ櫎계\ude7aퟋ擘셛䤶཮虞麽Რ䫄권﬌Ⳮ先蝱螻\udc44⫎マ횰禹짃ຍ騉쇇ݟ뛾챽ᨄ礔©氠䙓ႎ꾮i뺲⡡훦ᦧ寘暟굄㭵뵷汝䧆쒳쇅ꇚ箵餈軋鳂ᮂꍴ\ude4d돥愁\ude12ꐇꟲ糘䢳魡润딅뚏촖\ud93f㔮旑䪽꯳ᵫὴ毚뮑艳ꭰᖼꌈ랭\udb14奈孔ᅜ↽뢻윏ㅬ〸놼垪웄ỉ菗࿘ᴘꀵ⚐ᤰ媙辜㄀␀⸏贆䀋婟ᢀ腟ଫ\ud8cb翡ퟥ箤\ud800젆䲀㻾ט鯰軃춏塏넽潁텛枯⒬閹⽞먡桔Ƞ㉺折䛨땱᫜♠墝빀쬊⥙ਜ青\uddf5띋쳒㷽뺟ొ뉣퓇瀁팜噘딼敼ⵦ㖃㷡฻㪲봐﷖䊏즜箷㤇琐ට쯼둫괔纸봹풫⼶쨸구䗯毢㝅Ꙉ\udff6됮惼韋몎㳯댛퍎팊\udc01ϵ箚㝡漅\ud9b5ᐅ歡쑝뤊㸚⻊㡳핡⻩쎜嬽Ꟛ친㿎뷨照✢늵槈쐆쀏鸗耝䬂邹㥞櫴֨ր̃堀皀ฤ첗绋︥겚脑㙷✰⣛㐽欱鳇袎溯婨Ⱶ㵨뇭ﺌ䟩݃ꌰ赮Մʕ贮鼍앃욁ꕜﾯ춰堐頔踁꙾\udd7a㪷瓸竝툧켍ሀ儽Ѝ剁뻍熱쟨혧ṁ\uda9c甒晱ꡣう᜜\udddc紞첟렽‡腇芲Ѽꃍ㉚\udaca﹆贌娛杹溫\udc44ⅴᮭ༠㼗뚨펝ꅋྏ刬벙ַム뽓⻈孙剨㢥㷻ꀔᵐ♐裂姂飝後㐲蚳蟐丽᷋ᲃ킨娜鵺鮇흀櫶ᡯꯛⴑ꽀聋ූ᫚澒㲁急㾜瘀\udf40㣰챿䓮ᇣ᎕謡᫼瓇鵏뀷猑켓醠谖鱡荪鏘쬶೩᠂愣ꘃ贤諸彣讔赏팣ᕃ뭫ﺺꪋ➃섙Ť฼ظ鉃齺ᎏ緪丷躩脐켭ꞟ鷭㷿ྜ槴鳏矃珛䮏村履筟⇽묡歙ᾚ룜玑컆븹⺶츿Ư볲 ∫៸ཱུੰ㈨⑱껩銀᭢龶눍᧵%Q⇡ܟ⻈籇氶ᦐ탎㱽Ǖ퀽蠟 ۢ۹袪婘䏪뉠╁ᦟ㞃㑃턔Ш揤聶桘舂虹未䌏粜谿凳鶙ᮮ瘅궊夎묰쇜툐褡塷猟孻涭筵뛢鷠顊糊༾쩓賫昷딭머㜻򪫞厅临範Ǎ宼儹娀肁稃ᐃ퀋瀅괷⁕ﶟ\ud9a5|➄샻Ⱅ拃ңㅕ\u001e郜䀵ꁭ佡ᴛụよ쬓莳㵎﫯ᘿ䦺士ᇽ裂ⵒ烰邓␰࢒ľ䧆珸薄툐쟏ꯢ൹䫻❔軤鰚\ud8fa㈜⑳裧减䜝й䳜睴ࣘꆇ辁黲㪻낒恑ﳈ뮻像鼠錼躧೭㏉倷끒솀Ὰࠌ䒣탛᫫覜危츆䳫黇貽큱偺∴䗦灲ᾙ샃콫ꅆ㹭碌벾꣪䛬뚗㭱䝥ᵦ㡴쵩纨龎Ꮤ欺ல䃢뽪릜ፕ曎痦ࡑྒꎦ㥅뀧웶崞䄼潰櫅돉茽쁨ᅰកℂ뮨䈽ꀄ벞렛+ኔĎ˹Ȯൊ瀹쀣씰ገ젍蠋⏚✬圳ᱵ㮎瓄\udeed혧⢏\ud89e鳏턹汴掆ᚨշ㧘髻즹풤뾤妤舗圵ⳡㄿ㓧\ud8ee규쬽輁摽ỽ醙觶⮊䄀雦夝ĝ奄죦퓀㏓ⶐ䞠㘌ꠦ믟瀀偠 \u0000";
+            window.__GITBOOK_INITIAL_RENDER__ = true;
+            window.__GITBOOK_LAZY_MODULES__ = ["f1a718ae5a0b5d0a680254c13fabc0ed4b38f7b4037704dda83756645a7f1027"];
+        </script>
+        
+                
+    </body>
+</html>
